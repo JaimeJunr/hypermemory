@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
 import { runMigration } from "../src/migrate";
 import { memory } from "./fixtures";
-import { FakeMigrationDestination, FakeMigrationIO, FakeMigrationSource, optRecord, projectFiles } from "./migrate-fixtures";
+import {
+  FakeMigrationDestination,
+  FakeMigrationIO,
+  FakeMigrationSource,
+  optRecord,
+  projectFiles,
+} from "./migrate-fixtures";
 
 const PROJECT: string = "/wiki/workspace/project";
 const PROJECT_ARGS: readonly string[] = ["ai-memory", "--from", "/wiki", "--project", "Team", "/dest"];
@@ -20,10 +26,17 @@ function withRecords(records: readonly string[], destination?: FakeMigrationDest
 test("CLI rejects missing operands and flags or options incompatible with the source kind", (): void => {
   const io: FakeMigrationIO = withRecords([]);
   const cases: readonly (readonly string[])[] = [
-    [], ["unknown", "/dest"], ["optmem"], ["ai-memory", "/dest"], ["ai-memory", "--project", "Team"],
-    ["optmem", "--from", "--apply", "/dest"], ["optmem", "--project", "Team", "/dest"],
-    ["ai-memory", "--list", "--apply"], ["ai-memory", "--list", "--project", "Team"],
-    ["ai-memory", "--list", "/dest"], ["optmem", "--bogus", "/dest"],
+    [],
+    ["unknown", "/dest"],
+    ["optmem"],
+    ["ai-memory", "/dest"],
+    ["ai-memory", "--project", "Team"],
+    ["optmem", "--from", "--apply", "/dest"],
+    ["optmem", "--project", "Team", "/dest"],
+    ["ai-memory", "--list", "--apply"],
+    ["ai-memory", "--list", "--project", "Team"],
+    ["ai-memory", "--list", "/dest"],
+    ["optmem", "--bogus", "/dest"],
     ["optmem", "--from", "/one", "--from", "/two", "/dest"],
   ];
   for (const args of cases) {
@@ -53,13 +66,14 @@ test("CLI uses MEMORY_DIR or the home default for OptMem and honors explicit --f
 test("CLI lists every project with its migratable page count, largest first, without opening the destination", (): void => {
   const root: string = "/home/test/.local/share/ai-memory/wiki";
   const source: FakeMigrationSource = new FakeMigrationSource({
-    ...projectFiles(root + "/space/p1", "Empty", { "sessions/skip.md": "# Session" }),
-    ...projectFiles(root + "/space/p2", "Populated", { "notes/one.md": "# One", "profile/stack/two.md": "# Two" }),
-    ...projectFiles(root + "/space/p3", "One", { "notes/one.md": "# One", "index.md": "skip" }),
+    ...projectFiles(`${root}/space/p1`, "Empty", { "sessions/skip.md": "# Session" }),
+    ...projectFiles(`${root}/space/p2`, "Populated", { "notes/one.md": "# One", "profile/stack/two.md": "# Two" }),
+    ...projectFiles(`${root}/space/p3`, "One", { "notes/one.md": "# One", "index.md": "skip" }),
   });
   const io: FakeMigrationIO = new FakeMigrationIO(source);
   expect(runMigration(["ai-memory", "--list"], io)).toEqual({
-    exitCode: 0, output: ["Populated\t2", "One\t1", "Empty\t0"],
+    exitCode: 0,
+    output: ["Populated\t2", "One\t1", "Empty\t0"],
   });
   expect(io.opened).toEqual([]);
   expect(io.target.writes).toEqual([]);
@@ -71,10 +85,16 @@ test("CLI rejects missing and ambiguous project names with useful candidates", (
     ...projectFiles("/wiki/other/p", "Team", {}),
   });
   const io: FakeMigrationIO = new FakeMigrationIO(source);
-  for (const [project, expected] of [["Missing", "one of"], ["Team", "a unique project name"]]) {
-    const result: ReturnType<typeof runMigration> = runMigration(["ai-memory", "--from", "/wiki", "--project", project ?? "", "/dest"], io);
+  for (const [project, expected] of [
+    ["Missing", "one of"],
+    ["Team", "a unique project name"],
+  ]) {
+    const result: ReturnType<typeof runMigration> = runMigration(
+      ["ai-memory", "--from", "/wiki", "--project", project ?? "", "/dest"],
+      io,
+    );
     expect(result.exitCode).toBe(1);
-    expect(result.output.join("\n")).toContain("received " + JSON.stringify(project) + ", expected " + expected);
+    expect(result.output.join("\n")).toContain(`received ${JSON.stringify(project)}, expected ${expected}`);
   }
   expect(io.opened).toEqual([]);
 });
@@ -108,12 +128,13 @@ test("ai-memory dry run shows new pages and index lines with skips counted by re
 test("OptMem apply appends once, preserving existing LOG bytes and skipping duplicate lines", (): void => {
   const original: string = "2026-11-19 | event | Existing\r\n2026-11-19 | event | Last without newline";
   const destination: FakeMigrationDestination = new FakeMigrationDestination({ "LOG.md": original }, original);
-  const io: FakeMigrationIO = withRecords([
-    "#0 2026-11-19 Existing", "#1 2026-11-20 New", "#2 2026-11-20 New",
-  ], destination);
+  const io: FakeMigrationIO = withRecords(
+    ["#0 2026-11-19 Existing", "#1 2026-11-20 New", "#2 2026-11-20 New"],
+    destination,
+  );
   const args: string[] = [...OPT_ARGS, "--apply"];
   expect(runMigration(args, io).output).toContain("ok: 0 memory files, MEMORY.md 1 lines");
-  expect(destination.files["LOG.md"]).toBe(original + "\n2026-11-20 | event | New\n");
+  expect(destination.files["LOG.md"]).toBe(`${original}\n2026-11-20 | event | New\n`);
   expect(destination.files["MEMORY.md"]).toStartWith("<!-- Índice Hypermemory:");
   const again: ReturnType<typeof runMigration> = runMigration(args, io);
   expect(again.exitCode).toBe(0);
@@ -160,7 +181,11 @@ test("apply runs the existing validator and exits 1 for log or index issues", ()
 });
 
 test("retries repair an unlinked file from this migration and preserve an unrelated same-name file", (): void => {
-  const own: string = memory("partial", 'type: project\nkind: concept\norigin: "ai-memory:Team/notes/partial.md"', "Prior value");
+  const own: string = memory(
+    "partial",
+    'type: project\nkind: concept\norigin: "ai-memory:Team/notes/partial.md"',
+    "Prior value",
+  );
   const unrelated: string = memory("existing");
   const io: FakeMigrationIO = withProject(
     { "notes/partial.md": "# Current value", "notes/existing.md": "# Unrelated source" },
@@ -175,14 +200,16 @@ test("retries repair an unlinked file from this migration and preserve an unrela
   expect(result.exitCode).toBe(0);
   expect(io.target.files["partial.md"]).toBe(own);
   expect(io.target.files["existing.md"]).toBe(unrelated);
-  expect(io.target.files["MEMORY.md"]).toBe("- [Existing](existing.md) — A fact\n- [partial](partial.md) — Prior value\n");
+  expect(io.target.files["MEMORY.md"]).toBe(
+    "- [Existing](existing.md) — A fact\n- [partial](partial.md) — Prior value\n",
+  );
   expect(runMigration(args, io).exitCode).toBe(0);
   expect(io.target.writes).toHaveLength(1);
 });
 
 class FakeUnreadableOptSource extends FakeMigrationSource {
   override bytes(file: string): Uint8Array {
-    const message: string = "Cannot read fixture " + file;
+    const message: string = `Cannot read fixture ${file}`;
     throw new Error(message);
   }
 }
@@ -196,16 +223,19 @@ test("reports the received OptMem LOG.txt path or read error when the log cannot
     const io: FakeMigrationIO = new FakeMigrationIO(source);
     const result: ReturnType<typeof runMigration> = runMigration(OPT_ARGS, io);
     expect(result.exitCode).toBe(1);
-    expect(result.output.join("\n")).toContain(received + ", expected a readable 320-byte record log");
+    expect(result.output.join("\n")).toContain(`${received}, expected a readable 320-byte record log`);
     expect(io.opened).toEqual([]);
   }
 });
 
 test("ignores OptMem TREE and config whether or not LOG.txt has been created", (): void => {
   for (const record of [undefined, optRecord("#0 2026-11-19 Event")]) {
-    const io: FakeMigrationIO = new FakeMigrationIO(new FakeMigrationSource(
-      { "/opt/TREE/320": "ignored", "/opt/config": "ignored" }, record === undefined ? {} : { "/opt/LOG.txt": record },
-    ));
+    const io: FakeMigrationIO = new FakeMigrationIO(
+      new FakeMigrationSource(
+        { "/opt/TREE/320": "ignored", "/opt/config": "ignored" },
+        record === undefined ? {} : { "/opt/LOG.txt": record },
+      ),
+    );
     expect(runMigration(OPT_ARGS, io).exitCode).toBe(0);
     expect(io.source.reads).toEqual([]);
     expect(io.source.binaryReads).toEqual(record === undefined ? [] : ["/opt/LOG.txt"]);
@@ -215,14 +245,16 @@ test("ignores OptMem TREE and config whether or not LOG.txt has been created", (
 test("applying twice indexes a truncated inline-code title exactly once and passes validation", (): void => {
   const title: string = "Para posts novos, use `teams_send_channel_message` com o assunto no campo `subje";
   const file: string = "teams-send-channel.md";
-  const io: FakeMigrationIO = withProject({ ["profile/" + file]: "---\ntitle: " + JSON.stringify(title) + "\n---\n# Body\n" });
+  const io: FakeMigrationIO = withProject({
+    [`profile/${file}`]: `---\ntitle: ${JSON.stringify(title)}\n---\n# Body\n`,
+  });
   const args: string[] = [...PROJECT_ARGS, "--apply"];
   for (let run: number = 0; run < 2; run++) {
     const result: ReturnType<typeof runMigration> = runMigration(args, io);
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain("ok: 1 memory files, MEMORY.md 2 lines");
     const lines: string[] = (io.target.files["MEMORY.md"] ?? "").split("\n");
-    expect(lines.filter((line: string): boolean => line.includes("](" + file + ")"))).toHaveLength(1);
+    expect(lines.filter((line: string): boolean => line.includes(`](${file})`))).toHaveLength(1);
   }
   expect(io.target.writes).toHaveLength(1);
 });

@@ -16,7 +16,7 @@ class SeededRandom {
 function randomEntries(random: SeededRandom, count: number, label: string): string[] {
   return Array.from({ length: count }, (_unused: unknown, index: number): string => {
     const day: string = String(random.next(28) + 1).padStart(2, "0");
-    return "2026-11-" + day + " | event | " + label + " " + index + " " + random.next(10000) + "\n";
+    return `2026-11-${day} | event | ${label} ${index} ${random.next(10000)}\n`;
   });
 }
 
@@ -44,7 +44,8 @@ test("append-only rejects an edit and a removal at every historical line across 
     const suffix: string = randomEntries(random, 1 + random.next(9), "New").join("");
     for (const index of entries.keys()) {
       const edited: string[] = entries.map((line: string, candidate: number): string =>
-        candidate === index ? line.replace("Past", "Edit") : line);
+        candidate === index ? line.replace("Past", "Edit") : line,
+      );
       const removed: string[] = entries.filter((_line: string, candidate: number): boolean => candidate !== index);
       expectPrefixIssue(previous, edited.join("") + suffix);
       expectPrefixIssue(previous, removed.join("") + suffix);
@@ -57,7 +58,7 @@ test("append-only permits absent history, empty history, and identical content",
   for (const previous of [undefined, "", content]) {
     expect(check({ "LOG.md": content }, previous).issues).toEqual([]);
   }
-  expect(check({ "LOG.md": content + "\n2026-11-20 | event | Next\n" }, content).issues).toEqual([]);
+  expect(check({ "LOG.md": `${content}\n2026-11-20 | event | Next\n` }, content).issues).toEqual([]);
 });
 
 test("append-only rejects deleting the log and changing historical line endings", (): void => {

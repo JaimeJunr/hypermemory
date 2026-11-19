@@ -1,5 +1,11 @@
 import { DirectoryMemoryReader, GitPreviousLogReader, ProcessGitRunner } from "./readers";
-import { validateMemory, type Issue, type MemoryReader, type PreviousLogReader, type ValidationResult } from "./validator";
+import {
+  type Issue,
+  type MemoryReader,
+  type PreviousLogReader,
+  type ValidationResult,
+  validateMemory,
+} from "./validator";
 
 export interface MemorySources {
   readonly reader: MemoryReader;
@@ -15,8 +21,8 @@ interface CliResult {
 
 export function formatIssue(issue: Issue): string {
   const file: string = issue.file.replaceAll("\r", "\\r").replaceAll("\n", "\\n");
-  const location: string = issue.line === undefined ? file : file + ":" + issue.line;
-  return location + ": " + issue.message;
+  const location: string = issue.line === undefined ? file : `${file}:${issue.line}`;
+  return `${location}: ${issue.message}`;
 }
 
 export function runCli(args: readonly string[], openMemory: OpenMemory): CliResult {
@@ -30,16 +36,19 @@ export function runCli(args: readonly string[], openMemory: OpenMemory): CliResu
     if (result.issues.length > 0) {
       return { exitCode: 1, output: result.issues.map(formatIssue) };
     }
-    const summary: string = "ok: " + result.memoryFiles + " memory files, MEMORY.md " + result.indexLines + " lines";
+    const summary: string = `ok: ${result.memoryFiles} memory files, MEMORY.md ${result.indexLines} lines`;
     return { exitCode: 0, output: [summary] };
   } catch (error: unknown) {
     const reason: string = error instanceof Error ? error.message : String(error);
-    const output: string = formatIssue({ file: directory, message: "could not validate directory: " + JSON.stringify(reason) });
+    const output: string = formatIssue({
+      file: directory,
+      message: `could not validate directory: ${JSON.stringify(reason)}`,
+    });
     return { exitCode: 1, output: [output] };
   }
 }
 
-function openDirectory(directory: string): MemorySources {
+export function openDirectory(directory: string): MemorySources {
   return {
     reader: new DirectoryMemoryReader(directory),
     previousLog: new GitPreviousLogReader(directory, new ProcessGitRunner()),

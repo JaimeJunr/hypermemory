@@ -17,6 +17,6 @@ function showValue(value: unknown): string {
 export function receivedIssue(file: string, field: string, value: unknown, expected: string): Issue {
   return {
     file,
-    message: field + ": received " + showValue(value) + ", expected " + expected,
+    message: `${field}: received ${showValue(value)}, expected ${expected}`,
   };
 }

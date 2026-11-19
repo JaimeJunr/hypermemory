@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { runCli, type MemorySources } from "../src/cli";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { type MemorySources, openDirectory, runCli } from "../src/cli";
 import { FakeMemoryReader, FakePreviousLogReader, memory } from "./fixtures";
 
 function openFixture(directory: string): MemorySources {
@@ -13,6 +16,20 @@ function openFixture(directory: string): MemorySources {
   };
 }
 
+test("CLI opens a real memory directory from disk", (): void => {
+  const directory = mkdtempSync(join(tmpdir(), "hypermemory-cli-"));
+  try {
+    writeFileSync(join(directory, "MEMORY.md"), "[Fact](fact.md)\n");
+    writeFileSync(join(directory, "fact.md"), memory("fact"));
+    expect(runCli([directory], openDirectory)).toEqual({
+      exitCode: 0,
+      output: ["ok: 1 memory files, MEMORY.md 1 lines"],
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("CLI returns exit zero and a count summary for a valid directory", (): void => {
   expect(runCli(["fixture"], openFixture)).toEqual({
     exitCode: 0,
@@ -21,13 +38,16 @@ test("CLI returns exit zero and a count summary for a valid directory", (): void
 });
 
 test("CLI returns exit one and one output line per issue, with log line numbers", (): void => {
-  const result: ReturnType<typeof runCli> = runCli(["fixture"], (_directory: string): MemorySources => ({
-    reader: new FakeMemoryReader({
-      "MEMORY.md": "[Missing](missing.md)",
-      "LOG.md": "<!-- comment -->\ninvalid",
+  const result: ReturnType<typeof runCli> = runCli(
+    ["fixture"],
+    (_directory: string): MemorySources => ({
+      reader: new FakeMemoryReader({
+        "MEMORY.md": "[Missing](missing.md)",
+        "LOG.md": "<!-- comment -->\ninvalid",
+      }),
+      previousLog: new FakePreviousLogReader(),
     }),
-    previousLog: new FakePreviousLogReader(),
-  }));
+  );
   expect(result).toEqual({
     exitCode: 1,
     output: [

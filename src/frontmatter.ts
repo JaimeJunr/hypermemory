@@ -1,4 +1,4 @@
-import { receivedIssue, type Issue } from "./issue";
+import { type Issue, receivedIssue } from "./issue";
 
 const kindsByType: ReadonlyMap<string, readonly string[]> = new Map([
   ["user", ["profile"]],
@@ -46,9 +46,9 @@ function validateKind(file: string, metadata: Readonly<Record<string, unknown>>,
   const allowedKinds: readonly string[] | undefined = typeof type === "string" ? kindsByType.get(type) : undefined;
   if (allowedKinds === undefined) {
     const allowedTypes: string = [...kindsByType.keys()].join("|");
-    issues.push(receivedIssue(file, "metadata.type", type, "one of " + allowedTypes));
+    issues.push(receivedIssue(file, "metadata.type", type, `one of ${allowedTypes}`));
   } else if (kind !== undefined && (typeof kind !== "string" || !allowedKinds.includes(kind))) {
-    const expected: string = "one of " + allowedKinds.join("|") + " for metadata.type " + JSON.stringify(type);
+    const expected: string = `one of ${allowedKinds.join("|")} for metadata.type ${JSON.stringify(type)}`;
     issues.push(receivedIssue(file, "metadata.kind", kind, expected));
   }
 }
@@ -74,7 +74,9 @@ export function validateFrontmatter(file: string, content: string, issues: Issue
     frontmatter = undefined;
   }
   if (!isMapping(frontmatter)) {
-    issues.push(receivedIssue(file, "frontmatter", content, "a YAML mapping between --- delimiters at the start of the file"));
+    issues.push(
+      receivedIssue(file, "frontmatter", content, "a YAML mapping between --- delimiters at the start of the file"),
+    );
     return { file, name: undefined, metadata: {} };
   }
   return validateFields(file, frontmatter, issues);

@@ -1,6 +1,6 @@
 import { posix } from "node:path";
 import type { MemoryFile } from "./frontmatter";
-import { receivedIssue, type Issue } from "./issue";
+import { type Issue, receivedIssue } from "./issue";
 import { markdownLines } from "./markdown";
 
 const INDEX_LINE_LIMIT: number = 150;
@@ -10,10 +10,10 @@ export function validateIndexBudget(content: string, issues: Issue[]): number {
   const lines: number = markdownLines(content).length;
   const bytes: number = Buffer.byteLength(content, "utf8");
   if (lines > INDEX_LINE_LIMIT) {
-    issues.push(receivedIssue("MEMORY.md", "line count", lines, "at most " + INDEX_LINE_LIMIT + " lines"));
+    issues.push(receivedIssue("MEMORY.md", "line count", lines, `at most ${INDEX_LINE_LIMIT} lines`));
   }
   if (bytes > INDEX_BYTE_LIMIT) {
-    issues.push(receivedIssue("MEMORY.md", "byte count", bytes, "at most " + INDEX_BYTE_LIMIT + " UTF-8 bytes"));
+    issues.push(receivedIssue("MEMORY.md", "byte count", bytes, `at most ${INDEX_BYTE_LIMIT} UTF-8 bytes`));
   }
   return lines;
 }
@@ -38,7 +38,8 @@ function relativeMarkdownTarget(href: string): string | undefined {
 }
 
 function validateLinksFrom(
-  index: string, content: string,
+  index: string,
+  content: string,
   existingFiles: ReadonlySet<string>,
   supersededFiles: ReadonlySet<string>,
   linkedFiles: Set<string>,
@@ -70,7 +71,8 @@ export function validateIndexLinks(
   issues: Issue[],
 ): void {
   const supersededFiles: ReadonlySet<string> = new Set(
-    memories.filter((memory: MemoryFile): boolean => memory.metadata.status === "superseded")
+    memories
+      .filter((memory: MemoryFile): boolean => memory.metadata.status === "superseded")
       .map((memory: MemoryFile): string => memory.file),
   );
   const linkedFiles: Set<string> = new Set();

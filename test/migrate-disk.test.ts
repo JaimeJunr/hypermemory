@@ -1,7 +1,20 @@
 import { expect, test } from "bun:test";
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { runMigration } from "../src/migrate";
+import { DiskMigrationIO } from "../src/migration/disk";
 import { optRecord, projectFiles } from "./migrate-fixtures";
 
 interface TemporaryDir extends Disposable {
@@ -19,11 +32,17 @@ interface Invocation {
   readonly output: string;
 }
 
-function invoke(args: readonly string[]): Invocation {
-  const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([
-    process.execPath, "run", "src/migrate.ts", ...args,
-  ], { stdout: "pipe", stderr: "pipe" });
+function invokeCli(args: readonly string[]): Invocation {
+  const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([process.execPath, "run", "src/migrate.ts", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   return { exitCode: result.exitCode, output: result.stdout.toString() + result.stderr.toString() };
+}
+
+function invoke(args: readonly string[]): Invocation {
+  const result = runMigration(args, new DiskMigrationIO());
+  return { exitCode: result.exitCode, output: result.output.join("\n") };
 }
 
 function optSource(parent: string): string {
@@ -33,27 +52,41 @@ function optSource(parent: string): string {
   return source;
 }
 
-test("real CLI dry run leaves a nested missing destination absent, and apply writes the exact skeleton", (): void => {
+test("disk migration dry run leaves a nested destination absent, and apply writes the exact skeleton", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const parent: string = temporary.path;
   const source: string = optSource(parent);
   const dest: string = join(parent, "nested", "dest");
   const args: string[] = ["optmem", "--from", source, dest];
-  expect(invoke(args).output).toContain("Dry run");
+  expect(invokeCli(args).output).toContain("Dry run");
   expect(existsSync(join(parent, "nested"))).toBe(false);
   const applied: Invocation = invoke([...args, "--apply"]);
   expect(applied.exitCode).toBe(0);
   expect(applied.output).toContain("ok: 0 memory files, MEMORY.md 1 lines");
   expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toBe(readFileSync("memory/MEMORY.md", "utf8"));
   expect(readFileSync(join(dest, "LOG.md"), "utf8")).toBe(
-    readFileSync("memory/LOG.md", "utf8") + "2026-11-19 | event | Unique note\n",
+    `${readFileSync("memory/LOG.md", "utf8")}2026-11-19 | event | Unique note\n`,
   );
   expect(readdirSync(dest).sort()).toEqual(["LOG.md", "MEMORY.md"]);
   expect(invoke([...args, "--apply"]).output).toContain("0 files to create, 0 files to update");
   expect(readFileSync(join(source, "LOG.txt")).equals(optRecord("#0 2026-11-19 Unique note"))).toBe(true);
 });
 
-test("real CLI rejects direct and aliased destination paths under the source before creating any files", (): void => {
+test("disk migration appends to the existing log without replacing its inode", (): void => {
+  using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
+  const source = optSource(temporary.path);
+  const dest = join(temporary.path, "dest");
+  const log = join(dest, "LOG.md");
+  mkdirSync(dest);
+  const before = "2026-11-18 | event | Previous note\n";
+  writeFileSync(log, before);
+  const inode = statSync(log).ino;
+  expect(invoke(["optmem", "--from", source, dest, "--apply"]).exitCode).toBe(0);
+  expect(readFileSync(log, "utf8")).toBe(`${before}2026-11-19 | event | Unique note\n`);
+  expect(statSync(log).ino).toBe(inode);
+});
+
+test("disk migration rejects direct and aliased destinations under the source before creating files", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const parent: string = temporary.path;
   const source: string = optSource(parent);
@@ -67,13 +100,16 @@ test("real CLI rejects direct and aliased destination paths under the source bef
   expect(readdirSync(source)).toEqual(["LOG.txt"]);
 });
 
-test("real CLI refuses to append through symlinked and hard-linked logs", (): void => {
+test("disk migration refuses to append through symlinked and hard-linked logs", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const parent: string = temporary.path;
   const source: string = optSource(parent);
   const original: string = join(source, "historical.md");
   writeFileSync(original, "2026-11-19 | event | Original\n");
-  for (const [kind, attach] of [["symbolic", symlinkSync], ["hard", linkSync]] as const) {
+  for (const [kind, attach] of [
+    ["symbolic", symlinkSync],
+    ["hard", linkSync],
+  ] as const) {
     const dest: string = join(parent, kind);
     mkdirSync(dest);
     attach(original, join(dest, "LOG.md"));
@@ -90,7 +126,10 @@ test("the package script invokes the CLI in dry-run and apply modes", (): void =
   const parent: string = temporary.path;
   const source: string = optSource(parent);
   const args: string[] = ["optmem", "--from", source, join(parent, "dest")];
-  for (const [flags, expected] of [[[], "Dry run"], [["--apply"], "ok: 0 memory files, MEMORY.md 1 lines"]] as const) {
+  for (const [flags, expected] of [
+    [[], "Dry run"],
+    [["--apply"], "ok: 0 memory files, MEMORY.md 1 lines"],
+  ] as const) {
     const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([process.execPath, "run", "migrate", ...args, ...flags]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString()).toContain(expected);
@@ -104,7 +143,7 @@ function writeFixtures(files: Readonly<Record<string, string>>): void {
   }
 }
 
-test("real CLI refuses to replace a hard-linked MEMORY.md and leaves other planned files absent", (): void => {
+test("disk migration refuses to replace a hard-linked MEMORY.md and leaves other planned files absent", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const wiki: string = join(temporary.path, "wiki");
   const project: string = join(wiki, "workspace/project");
@@ -120,15 +159,18 @@ test("real CLI refuses to replace a hard-linked MEMORY.md and leaves other plann
   expect(readFileSync(source, "utf8")).toBe("# Original\n");
 });
 
-test("real CLI errors identify file paths received in place of source and destination directories", (): void => {
+test("disk migration errors identify files received in place of source and destination directories", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const source: string = optSource(temporary.path);
   const file: string = join(source, "LOG.txt");
   const missing: string = join(temporary.path, "dest");
-  for (const [from, dest, expected] of [[file, missing, "an OptMem directory"], [source, file, "a destination directory"]] as const) {
+  for (const [from, dest, expected] of [
+    [file, missing, "an OptMem directory"],
+    [source, file, "a destination directory"],
+  ] as const) {
     const result: Invocation = invoke(["optmem", "--from", from, dest]);
     expect(result.exitCode).toBe(1);
-    expect(result.output).toContain("received " + JSON.stringify(file) + ", expected " + expected);
+    expect(result.output).toContain(`received ${JSON.stringify(file)}, expected ${expected}`);
   }
 });
 
@@ -138,7 +180,7 @@ test("real ai-memory applies overflow indexes and leaves all 151 pages and index
   const project: string = join(wiki, "workspace/project");
   const dest: string = join(temporary.path, "dest");
   const pages: Record<string, string> = { "references/ref.md": "# Reference" };
-  for (let index: number = 0; index < 150; index++) pages["notes/page-" + index + ".md"] = "# Note";
+  for (let index: number = 0; index < 150; index++) pages[`notes/page-${index}.md`] = "# Note";
   writeFixtures(projectFiles(project, "Example", pages));
   const args: string[] = ["ai-memory", "--from", wiki, "--project", "Example", dest, "--apply"];
   const first: Invocation = invoke(args);

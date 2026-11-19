@@ -10,7 +10,7 @@ export class FakeMemoryReader implements MemoryReader {
 
   read(file: string): string {
     const content: string | undefined = this.files[file];
-    if (content === undefined) throw new Error("Missing fixture: " + file);
+    if (content === undefined) throw new Error(`Missing fixture: ${file}`);
     return content;
   }
 }
@@ -23,19 +23,15 @@ export class FakePreviousLogReader implements PreviousLogReader {
   }
 }
 
-export function check(
-  files: Readonly<Record<string, string>>,
-  previousLog?: string,
-): ValidationResult {
+export function check(files: Readonly<Record<string, string>>, previousLog?: string): ValidationResult {
   const reader: FakeMemoryReader = new FakeMemoryReader({ "MEMORY.md": "", "LOG.md": "", ...files });
   return validateMemory(reader, new FakePreviousLogReader(previousLog));
 }
 
-export function memory(
-  name: string,
-  metadata: string = "type: project",
-  description: string = "A fact",
-): string {
-  const fields: string = metadata.split("\n").map((field: string): string => "  " + field).join("\n");
-  return ["---", "name: " + name, "description: " + description, "metadata:", fields, "---", "", "Body"].join("\n");
+export function memory(name: string, metadata: string = "type: project", description: string = "A fact"): string {
+  const fields: string = metadata
+    .split("\n")
+    .map((field: string): string => `  ${field}`)
+    .join("\n");
+  return ["---", `name: ${name}`, `description: ${description}`, "metadata:", fields, "---", "", "Body"].join("\n");
 }

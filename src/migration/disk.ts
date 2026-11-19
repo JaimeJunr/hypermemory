@@ -1,8 +1,22 @@
 import { randomUUID } from "node:crypto";
 import {
-  appendFileSync, closeSync, constants, fstatSync, linkSync, lstatSync, mkdirSync, openSync,
-  readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync,
-  type Dirent, type Stats,
+  appendFileSync,
+  closeSync,
+  constants,
+  type Dirent,
+  fstatSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmdirSync,
+  type Stats,
+  unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -30,7 +44,8 @@ class DirectorySource implements MigrationSource {
   entries(directory: string): WikiEntry[] | undefined {
     try {
       const entries: Dirent[] = readdirSync(directory, { withFileTypes: true });
-      return entries.filter((entry: Dirent): boolean => entry.isDirectory() || entry.isFile())
+      return entries
+        .filter((entry: Dirent): boolean => entry.isDirectory() || entry.isFile())
         .map((entry: Dirent): WikiEntry => ({ name: entry.name, directory: entry.isDirectory() }));
     } catch (error: unknown) {
       if (hasCode(error, "ENOENT") || hasCode(error, "ENOTDIR")) return undefined;
@@ -86,7 +101,7 @@ function destinationPath(path: string): string {
 
 function ensureOutsideSource(directory: string, source: string): void {
   const path: string = relative(canonicalPath(source), canonicalPath(directory));
-  if (path === "" || (path !== ".." && !path.startsWith(".." + sep) && !isAbsolute(path))) {
+  if (path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))) {
     fail(directory, "destination", directory, "a destination outside the source directory");
   }
 }
@@ -98,7 +113,12 @@ function verifyChange(path: string, change: FileChange): Stats | undefined {
   }
   const content: string | undefined = stat === undefined ? undefined : readFileSync(path, "utf8");
   if (content !== change.before) {
-    fail(path, "file state", content === undefined ? "missing" : "present with different contents", "the same file state as during planning");
+    fail(
+      path,
+      "file state",
+      content === undefined ? "missing" : "present with different contents",
+      "the same file state as during planning",
+    );
   }
   return stat;
 }
@@ -118,7 +138,7 @@ function appendLog(path: string, before: string, content: string): void {
 }
 
 function stageAndWrite(path: string, change: FileChange, stat: Stats | undefined): void {
-  const temporary: string = join(dirname(path), ".hypermemory-" + randomUUID() + ".tmp");
+  const temporary: string = join(dirname(path), `.hypermemory-${randomUUID()}.tmp`);
   const fd: number = openSync(temporary, "wx", stat === undefined ? undefined : stat.mode & 0o777);
   try {
     try {
@@ -157,7 +177,10 @@ class DirectoryDestination implements MigrationDestination {
   readonly previousLog: GitPreviousLogReader;
   private readonly directory: string;
 
-  constructor(directory: string, private readonly source: string) {
+  constructor(
+    directory: string,
+    private readonly source: string,
+  ) {
     this.directory = destinationPath(directory);
     this.reader = new OptionalDirectoryReader(this.directory);
     this.previousLog = new GitPreviousLogReader(this.directory, new ProcessGitRunner());

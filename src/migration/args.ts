@@ -16,9 +16,9 @@ interface ApplyOptions {
   readonly apply: boolean;
 }
 
-export type MigrationOptions = ListOptions | (ApplyOptions & (
-  { readonly kind: "optmem" } | { readonly kind: "ai-memory"; readonly project: string }
-));
+export type MigrationOptions =
+  | ListOptions
+  | (ApplyOptions & ({ readonly kind: "optmem" } | { readonly kind: "ai-memory"; readonly project: string }));
 
 interface PathDefaults {
   readonly home: string;
@@ -41,21 +41,36 @@ function invalid(received: unknown): never {
   throw new Error(message);
 }
 
+function argumentAt(args: readonly string[], index: number): string {
+  const value: string | undefined = args[index];
+  if (value === undefined || value === "") invalid(args);
+  return value;
+}
+
+function flagValue(args: readonly string[], index: number): string {
+  const value: string = argumentAt(args, index);
+  if (value.startsWith("--")) invalid(args);
+  return value;
+}
+
 function readFlags(args: readonly string[]): ParsedFlags {
   const flags: Map<string, string> = new Map();
   let dest: string | undefined;
   for (let index: number = 1; index < args.length; index++) {
-    const arg: string = args[index] ?? "";
-    if (arg === "" || flags.has(arg)) invalid(args);
-    if (arg === "--apply" || arg === "--list") {
-      flags.set(arg, "");
-    } else if (arg === "--from" || arg === "--project") {
-      const value: string | undefined = args[++index];
-      if (value === undefined || value === "" || value.startsWith("--")) invalid(args);
-      flags.set(arg, value);
-    } else {
-      if (dest !== undefined || arg.startsWith("-")) invalid(args);
-      dest = arg;
+    const arg: string = argumentAt(args, index);
+    if (flags.has(arg)) invalid(args);
+    switch (arg) {
+      case "--apply":
+      case "--list":
+        flags.set(arg, "");
+        break;
+      case "--from":
+      case "--project":
+        flags.set(arg, flagValue(args, ++index));
+        break;
+      default:
+        if (dest !== undefined || arg.startsWith("-")) invalid(args);
+        dest = arg;
     }
   }
   return { flags, dest };
@@ -67,23 +82,29 @@ function expandHome(path: string, home: string): string {
 }
 
 function sourceDirectory(kind: SourceKind, explicit: string | undefined, paths: PathDefaults): string {
-  const fallback: string = kind === "optmem"
-    ? paths.memoryDir || "~/.optmem/memory"
-    : "~/.local/share/ai-memory/wiki";
+  const fallback: string = kind === "optmem" ? paths.memoryDir || "~/.optmem/memory" : "~/.local/share/ai-memory/wiki";
   return expandHome(explicit ?? fallback, paths.home);
+}
+
+function listOptions(
+  args: readonly string[],
+  kind: SourceKind,
+  from: string,
+  { flags, dest }: ParsedFlags,
+): ListOptions {
+  if (kind !== "ai-memory" || flags.has("--project") || dest !== undefined || flags.has("--apply")) invalid(args);
+  return { kind, from, list: true };
 }
 
 export function parseMigrationOptions(args: readonly string[], paths: PathDefaults): MigrationOptions {
   const [kind] = args;
   if (kind !== "optmem" && kind !== "ai-memory") invalid(args);
-  const { flags, dest }: ParsedFlags = readFlags(args);
+  const parsed: ParsedFlags = readFlags(args);
+  const { flags, dest }: ParsedFlags = parsed;
   const from: string = sourceDirectory(kind, flags.get("--from"), paths);
+  if (flags.has("--list")) return listOptions(args, kind, from, parsed);
   const project: string | undefined = flags.get("--project");
   const apply: boolean = flags.has("--apply");
-  if (flags.has("--list")) {
-    if (kind !== "ai-memory" || project !== undefined || dest !== undefined || apply) invalid(args);
-    return { kind, from, list: true };
-  }
   if (dest === undefined) invalid(args);
   const options: ApplyOptions = { from, list: false, dest: expandHome(dest, paths.home), apply };
   if (kind === "optmem" && project === undefined) return { ...options, kind };

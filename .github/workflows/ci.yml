@@ -1,0 +1,56 @@
+name: CI
+
+# Path-filtered workflows can leave required checks pending. ci-docs.yml
+# supplies static and test for documentation-only changes.
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "modelos/**", "memory/**"]
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "modelos/**", "memory/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-1.3.14-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run size
+
+  test:
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-1.3.14-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run test

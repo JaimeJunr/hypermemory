@@ -9,7 +9,7 @@ class FakeGitRunner implements GitRunner {
   run(directory: string, args: readonly string[]): GitResult {
     const result: GitResult | undefined = this.results[this.calls.length];
     this.calls.push([directory, ...args]);
-    if (result === undefined) throw new Error("Unexpected Git command: " + args.join(" "));
+    if (result === undefined) throw new Error(`Unexpected Git command: ${args.join(" ")}`);
     return result;
   }
 }
@@ -51,5 +51,7 @@ test("Git skips an unborn HEAD, a missing HEAD log, and a directory outside Git"
 
 test("Git surfaces unexpected failures instead of treating them as missing history", (): void => {
   const git: FakeGitRunner = new FakeGitRunner([gitResult("", 128, "fatal: repository access denied")]);
-  expect((): string | undefined => new GitPreviousLogReader("/fixture", git).read()).toThrow("fatal: repository access denied");
+  expect((): string | undefined => new GitPreviousLogReader("/fixture", git).read()).toThrow(
+    "fatal: repository access denied",
+  );
 });

@@ -18,7 +18,7 @@ export interface IndexEdit {
 
 const MAIN_INDEX: string = "MEMORY.md";
 
-const MARKDOWN_ESCAPE: RegExp = /[\\\[\]<>&]/g;
+const MARKDOWN_ESCAPE: RegExp = /[\\[\]<>&]/g;
 
 const INDEX_TEXT_LIMIT: number = 80;
 
@@ -28,31 +28,35 @@ function indexText(value: string): string {
   if (characters.length <= INDEX_TEXT_LIMIT) return text;
   const prefix: string = characters.slice(0, INDEX_TEXT_LIMIT - 1).join("");
   const boundary: number = characters[INDEX_TEXT_LIMIT - 1] === " " ? prefix.length : prefix.lastIndexOf(" ");
-  return (boundary > 0 ? prefix.slice(0, boundary) : prefix) + "…";
+  return `${boundary > 0 ? prefix.slice(0, boundary) : prefix}…`;
 }
 
 function indexLine(title: string, file: string, hook: string): string {
   const label: string = (indexText(title) || file.slice(0, -3)).replace(MARKDOWN_ESCAPE, "\\$&");
   const description: string = indexText(hook).replace(MARKDOWN_ESCAPE, "\\$&");
-  return "- [" + label + "](" + file + ") — " + description;
+  return `- [${label}](${file}) — ${description}`;
 }
 
 function pageLine(page: IndexPage): string {
-  const file: string = page.name + ".md";
+  const file: string = `${page.name}.md`;
   return indexLine(page.title, file, page.description);
 }
 
 function linkedFiles(indexes: ReadonlyMap<string, string>): Set<string> {
   const linked: Set<string> = new Set();
   for (const content of indexes.values()) {
-    visitIndexTargets(content, (target: string): void => { linked.add(target); });
+    visitIndexTargets(content, (target: string): void => {
+      linked.add(target);
+    });
   }
   return linked;
 }
 
 function linkedIn(content: string): Set<string> {
   const linked: Set<string> = new Set();
-  visitIndexTargets(content, (target: string): void => { linked.add(target); });
+  visitIndexTargets(content, (target: string): void => {
+    linked.add(target);
+  });
   return linked;
 }
 
@@ -73,16 +77,20 @@ interface DomainGroup {
 }
 
 function domainGroup(
-  indexes: ReadonlyMap<string, string>, kind: Category["kind"], pages: readonly IndexPage[], linked: ReadonlySet<string>,
+  indexes: ReadonlyMap<string, string>,
+  kind: Category["kind"],
+  pages: readonly IndexPage[],
+  linked: ReadonlySet<string>,
 ): DomainGroup {
-  const file: string = "index-" + kind + ".md";
+  const file: string = `index-${kind}.md`;
   const title: string = kind.charAt(0).toUpperCase() + kind.slice(1);
-  const heading: string = "# " + title + "\n";
+  const heading: string = `# ${title}\n`;
   const existing: string = indexes.get(file) ?? heading;
   const domainTargets: ReadonlySet<string> = linkedIn(existing);
-  const pending: IndexPage[] = pages.filter(({ name }): boolean => !linked.has(name + ".md"));
-  const linkedCount: number = pages.filter(({ name }): boolean => domainTargets.has(name + ".md")).length;
-  const needsMainLink: boolean = !linked.has(file) && (pending.length > 0 || linkedCount > 0 && existing.startsWith(heading));
+  const pending: IndexPage[] = pages.filter(({ name }): boolean => !linked.has(`${name}.md`));
+  const linkedCount: number = pages.filter(({ name }): boolean => domainTargets.has(`${name}.md`)).length;
+  const needsMainLink: boolean =
+    !linked.has(file) && (pending.length > 0 || (linkedCount > 0 && existing.startsWith(heading)));
   return { file, title, kind, existing, pending, linkedCount, needsMainLink };
 }
 
@@ -91,7 +99,7 @@ function addDomain(domain: DomainGroup, edits: IndexEdit[], mainLines: string[])
   const lines: string[] = pending.map(pageLine);
   if (lines.length > 0) edits.push({ file, content: appendLines(existing, lines), lines });
   if (domain.needsMainLink) {
-    const hook: string = (pending.length + linkedCount) + " memórias de " + kind + " migradas do ai-memory";
+    const hook: string = `${pending.length + linkedCount} memórias de ${kind} migradas do ai-memory`;
     mainLines.push(indexLine(title, file, hook));
   }
 }
@@ -102,7 +110,7 @@ function archiveName(indexes: ReadonlyMap<string, string>, current: string): str
     if (/^index-existing(?:-\d+)?\.md$/.test(file) && content === current && !linked.has(file)) return file;
   }
   let file: string = "index-existing.md";
-  for (let suffix: number = 2; indexes.has(file); suffix++) file = "index-existing-" + suffix + ".md";
+  for (let suffix: number = 2; indexes.has(file); suffix++) file = `index-existing-${suffix}.md`;
   return file;
 }
 
@@ -130,12 +138,17 @@ function groupedIndexes(indexes: ReadonlyMap<string, string>, domains: readonly 
 
 export function planIndexes(indexes: ReadonlyMap<string, string>, pages: readonly IndexPage[]): IndexEdit[] {
   const linked: ReadonlySet<string> = linkedFiles(indexes);
-  const groups: ReadonlyMap<Category["kind"], IndexPage[]> = Map.groupBy(pages, (page: IndexPage): Category["kind"] => page.kind);
-  const domains: DomainGroup[] = [...groups].map(([kind, entries]): DomainGroup => domainGroup(indexes, kind, entries, linked));
+  const groups: ReadonlyMap<Category["kind"], IndexPage[]> = Map.groupBy(
+    pages,
+    (page: IndexPage): Category["kind"] => page.kind,
+  );
+  const domains: DomainGroup[] = [...groups].map(
+    ([kind, entries]): DomainGroup => domainGroup(indexes, kind, entries, linked),
+  );
   if (domains.some((domain: DomainGroup): boolean => domain.needsMainLink && domain.linkedCount > 0)) {
     return groupedIndexes(indexes, domains);
   }
-  const lines: string[] = pages.filter(({ name }): boolean => !linked.has(name + ".md")).map(pageLine);
+  const lines: string[] = pages.filter(({ name }): boolean => !linked.has(`${name}.md`)).map(pageLine);
   if (lines.length === 0) return [];
   const content: string = appendLines(indexes.get(MAIN_INDEX) ?? "", lines);
   return fits(content) ? [{ file: MAIN_INDEX, content, lines }] : groupedIndexes(indexes, domains);

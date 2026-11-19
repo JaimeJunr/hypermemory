@@ -7,5 +7,5 @@ export function markdownLines(content: string): string[] {
 export function appendLines(content: string, lines: readonly string[]): string {
   if (lines.length === 0) return content;
   const separator: string = content === "" || /[\r\n]$/.test(content) ? "" : "\n";
-  return content + separator + lines.join("\n") + "\n";
+  return `${content}${separator}${lines.join("\n")}\n`;
 }
