@@ -1,0 +1,14 @@
+{
+  "name": "hypermemory",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "bun run src/cli.ts memory",
+    "migrate": "bun run src/migrate.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
