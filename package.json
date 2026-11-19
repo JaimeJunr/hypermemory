@@ -1,11 +1,13 @@
 {
   "name": "hypermemory",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "bun test --coverage",
     "check": "bun run src/cli.ts memory",
     "migrate": "bun run src/migrate.ts",
+    "upgrade": "bun run src/upgrade.ts",
     "lint": "biome ci .",
     "typecheck": "tsc --noEmit -p .",
     "size": "bun run scripts/check-size.ts",

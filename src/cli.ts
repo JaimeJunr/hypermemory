@@ -32,7 +32,7 @@ export function runCli(args: readonly string[], openMemory: OpenMemory): CliResu
   }
   try {
     const { reader, previousLog }: MemorySources = openMemory(directory);
-    const result: ValidationResult = validateMemory(reader, previousLog);
+    const result: ValidationResult = validateMemory(reader, previousLog, directory);
     if (result.issues.length > 0) {
       return { exitCode: 1, output: result.issues.map(formatIssue) };
     }

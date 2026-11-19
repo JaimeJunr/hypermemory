@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1-}" in
+  check) entry=cli ;;
+  migrate) entry=migrate ;;
+  upgrade) entry=upgrade ;;
+  *) echo 'usage: hypermemory <check | migrate | upgrade> ...' >&2; exit 1 ;;
+esac
+shift
+
+script=$(realpath -- "${BASH_SOURCE[0]}")
+bun_bin="$HOME/.bun/bin/bun"
+if [[ ! -x "$bun_bin" ]]; then
+  bun_bin=bun
+fi
+exec "$bun_bin" run "${script%/*}/../src/$entry.ts" "$@"

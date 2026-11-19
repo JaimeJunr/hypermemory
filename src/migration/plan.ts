@@ -1,4 +1,5 @@
 import { formatIssue } from "../cli";
+import { changedFiles, type FileChange } from "../file-changes";
 import { type MemoryFile, nonEmptyString, validateFrontmatter } from "../frontmatter";
 import { isDomainIndex } from "../indexes";
 import type { Issue } from "../issue";
@@ -9,11 +10,7 @@ import type { OptMemRecords } from "./optmem";
 import { type ConvertedPages, convertPages, type MigratedPage, type NamedPage, pageOrigin } from "./pages";
 import type { ProjectPages, Skipped } from "./wiki";
 
-export interface FileChange {
-  readonly file: string;
-  readonly before: string | undefined;
-  readonly content: string;
-}
+export type { FileChange } from "../file-changes";
 
 export interface Skeleton {
   readonly memory: string;
@@ -37,15 +34,6 @@ function loadDestination(reader: MemoryReader, files: ReadonlySet<string>): Map<
     if (file === INDEX || file === LOG || isDomainIndex(file)) indexes.set(file, reader.read(file));
   }
   return indexes;
-}
-
-function changedFiles(old: ReadonlyMap<string, string>, updated: ReadonlyMap<string, string>): FileChange[] {
-  const changes: FileChange[] = [];
-  for (const [file, content] of updated) {
-    const before: string | undefined = old.get(file);
-    if (before !== content) changes.push({ file, before, content });
-  }
-  return changes;
 }
 
 function fillSkeleton(files: Map<string, string>, skeleton: Skeleton): void {

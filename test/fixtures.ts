@@ -1,3 +1,4 @@
+import { CURRENT_FORMAT, formatMarker } from "../src/format";
 import type { MemoryReader, PreviousLogReader, ValidationResult } from "../src/validator";
 import { validateMemory } from "../src/validator";
 
@@ -23,8 +24,16 @@ export class FakePreviousLogReader implements PreviousLogReader {
   }
 }
 
+export function markedIndex(content: string = "", newline: string = "\n"): string {
+  return formatMarker(CURRENT_FORMAT) + newline + content;
+}
+
 export function check(files: Readonly<Record<string, string>>, previousLog?: string): ValidationResult {
-  const reader: FakeMemoryReader = new FakeMemoryReader({ "MEMORY.md": "", "LOG.md": "", ...files });
+  const reader: FakeMemoryReader = new FakeMemoryReader({
+    "LOG.md": "",
+    ...files,
+    "MEMORY.md": markedIndex(files["MEMORY.md"]),
+  });
   return validateMemory(reader, new FakePreviousLogReader(previousLog));
 }
 

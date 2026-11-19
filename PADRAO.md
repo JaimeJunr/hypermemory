@@ -16,6 +16,16 @@ ln -s /caminho/do/projeto/memory ~/.claude/projects/<projeto>/memory
 
 Alternativa: `autoMemoryDirectory` no `settings.json` (caminho absoluto ou começando com `~/`).
 
+## Versões e migração do formato
+
+O projeto segue [SemVer 2.0.0](https://semver.org/lang/pt-BR/spec/v2.0.0.html) e [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.0/).
+
+- O formato da memória é um inteiro na primeira linha de `MEMORY.md`, no comentário `<!-- hypermemory-format: <N> -->`. O formato atual é 1 e pastas sem o marcador são do formato 0.
+- Uma mudança que invalida memórias existentes ou muda seu significado incrementa o formato em um e inclui a migração `NNNN` na mesma versão. Registre-a no `CHANGELOG.md`, em `### Changed`, com o prefixo **Quebra:** e o comando exato `hypermemory upgrade <pasta> --apply`. Incremente a versão MAJOR. Durante o desenvolvimento inicial 0.x, o projeto incrementa a versão MINOR.
+- Uma versão que só acrescenta campos opcionais mantém o formato. O agente nunca edita o marcador à mão.
+
+Rode `hypermemory upgrade <pasta>` para ver o plano e `hypermemory upgrade <pasta> --apply` para executar. Antes de gravar, o comando copia a pasta inteira para `<pasta>.backup-format-<formato-anterior>-<YYYYMMDDTHHMMSS>`, ao lado da pasta original, com horário UTC. Se a pasta for um link simbólico, o backup fica ao lado do destino do link.
+
 ## Arquivos (todos na mesma pasta, sem subpastas)
 
 | Arquivo | Origem | Carregado no começo? | Muda? |
@@ -73,7 +83,7 @@ Regras do corpo, iguais às que o Claude Code já segue, mais duas:
 
 ## Índice (`MEMORY.md`)
 
-Formato nativo, uma linha por memória, sem frontmatter e sem conteúdo:
+Após o marcador do formato, use uma linha por memória, seguindo o índice nativo:
 
 ```
 - [Título](slug.md) — gancho de uma linha
