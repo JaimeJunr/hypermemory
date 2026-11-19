@@ -1,3 +1,4 @@
+import { formatVersionIssue, MEMORY_INDEX, readFormat } from "./format";
 import { type MemoryFile, validateFrontmatter } from "./frontmatter";
 import { isDomainIndex, validateIndexBudget, validateIndexLinks } from "./indexes";
 import type { Issue } from "./issue";
@@ -22,24 +23,31 @@ export interface ValidationResult {
 }
 
 function isMemoryFile(file: string): boolean {
-  const isReserved: boolean = file === "MEMORY.md" || file === "LOG.md" || isDomainIndex(file);
+  const isReserved: boolean = file === MEMORY_INDEX || file === "LOG.md" || isDomainIndex(file);
   return file.endsWith(".md") && !isReserved;
 }
 
 function loadIndexes(reader: MemoryReader, files: readonly string[]): Map<string, string> {
   const indexes: Map<string, string> = new Map();
-  if (files.includes("MEMORY.md")) indexes.set("MEMORY.md", reader.read("MEMORY.md"));
+  if (files.includes(MEMORY_INDEX)) indexes.set(MEMORY_INDEX, reader.read(MEMORY_INDEX));
   for (const file of files.filter(isDomainIndex)) {
     indexes.set(file, reader.read(file));
   }
   return indexes;
 }
 
-export function validateMemory(reader: MemoryReader, previousLog: PreviousLogReader): ValidationResult {
+export function validateMemory(
+  reader: MemoryReader,
+  previousLog: PreviousLogReader,
+  directory?: string,
+): ValidationResult {
   const issues: Issue[] = [];
   const files: string[] = [...reader.list()].sort();
   const indexes: Map<string, string> = loadIndexes(reader, files);
-  const indexLines: number = validateIndexBudget(indexes.get("MEMORY.md") ?? "", issues);
+  const index: string = indexes.get(MEMORY_INDEX) ?? "";
+  const formatIssue: Issue | undefined = formatVersionIssue(readFormat(index), directory);
+  if (formatIssue !== undefined) issues.push(formatIssue);
+  const indexLines: number = validateIndexBudget(index, issues);
   const memories: MemoryFile[] = files
     .filter(isMemoryFile)
     .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues));

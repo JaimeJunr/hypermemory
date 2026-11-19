@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { formatIssue, type MemorySources, runCli } from "./cli";
 import { receivedIssue } from "./issue";
 import { type MigrationOptions, parseMigrationOptions } from "./migration/args";
+import { assertCurrentDestination } from "./migration/destination-format";
 import { DiskMigrationIO } from "./migration/disk";
 import { readOptMemRecords } from "./migration/optmem";
 import {
@@ -19,6 +20,7 @@ export interface MigrationSource extends WikiReader {
 }
 
 export interface MigrationDestination extends MemorySources {
+  exists(): boolean;
   apply(changes: readonly FileChange[]): void;
 }
 
@@ -98,11 +100,17 @@ function applyPlan(
   return { exitCode: validation.exitCode, output: [...output, ...validation.output] };
 }
 
+function openDestination(directory: string, source: string, io: MigrationIO): MigrationDestination {
+  const destination: MigrationDestination = io.destination(directory, source);
+  if (destination.exists()) assertCurrentDestination(destination.reader, directory);
+  return destination;
+}
+
 function migrateWiki(options: Extract<MigrationOptions, { kind: "ai-memory" }>, io: MigrationIO): MigrationResult {
   const projects: WikiProject[] = findProjects(io.source, options.from);
   if (options.list) return listProjects(io.source, projects);
   const project: WikiProject = selectProject(projects, options.project);
-  const destination: MigrationDestination = io.destination(options.dest, options.from);
+  const destination: MigrationDestination = openDestination(options.dest, options.from, io);
   const plan: MigrationPlan = planWiki(destination.reader, readProject(io.source, project), project.name, io.skeleton);
   return applyPlan(options, plan, destination);
 }
@@ -117,7 +125,7 @@ export function runMigration(args: readonly string[], io: MigrationIO): Migratio
     const options: MigrationOptions = parseMigrationOptions(args, io);
     if (options.kind === "ai-memory") return migrateWiki(options, io);
     const bytes: Uint8Array = optMemBytes(io.source, options.from);
-    const destination: MigrationDestination = io.destination(options.dest, options.from);
+    const destination: MigrationDestination = openDestination(options.dest, options.from, io);
     const plan: MigrationPlan = planOptMem(destination.reader, readOptMemRecords(bytes), io.skeleton);
     return applyPlan(options, plan, destination);
   } catch (error: unknown) {

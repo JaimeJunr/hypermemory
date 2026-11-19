@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { runMigration } from "../src/migrate";
-import { memory } from "./fixtures";
+import { markedIndex, memory } from "./fixtures";
 import {
   FakeMigrationDestination,
   FakeMigrationIO,
@@ -127,7 +127,10 @@ test("ai-memory dry run shows new pages and index lines with skips counted by re
 
 test("OptMem apply appends once, preserving existing LOG bytes and skipping duplicate lines", (): void => {
   const original: string = "2026-11-19 | event | Existing\r\n2026-11-19 | event | Last without newline";
-  const destination: FakeMigrationDestination = new FakeMigrationDestination({ "LOG.md": original }, original);
+  const destination: FakeMigrationDestination = new FakeMigrationDestination(
+    { "MEMORY.md": markedIndex(), "LOG.md": original },
+    original,
+  );
   const io: FakeMigrationIO = withRecords(
     ["#0 2026-11-19 Existing", "#1 2026-11-20 New", "#2 2026-11-20 New"],
     destination,
@@ -135,7 +138,7 @@ test("OptMem apply appends once, preserving existing LOG bytes and skipping dupl
   const args: string[] = [...OPT_ARGS, "--apply"];
   expect(runMigration(args, io).output).toContain("ok: 0 memory files, MEMORY.md 1 lines");
   expect(destination.files["LOG.md"]).toBe(`${original}\n2026-11-20 | event | New\n`);
-  expect(destination.files["MEMORY.md"]).toStartWith("<!-- Índice Hypermemory:");
+  expect(destination.files["MEMORY.md"]).toBe(markedIndex());
   const again: ReturnType<typeof runMigration> = runMigration(args, io);
   expect(again.exitCode).toBe(0);
   expect(again.output.join("\n")).toContain("0 LOG lines to append");
@@ -151,7 +154,7 @@ test("ai-memory apply writes the skeleton, indexes active pages only, and skips 
   const args: string[] = [...PROJECT_ARGS, "--apply"];
   const first: ReturnType<typeof runMigration> = runMigration(args, io);
   expect(first.exitCode).toBe(0);
-  expect(first.output).toContain("ok: 2 memory files, MEMORY.md 2 lines");
+  expect(first.output).toContain("ok: 2 memory files, MEMORY.md 3 lines");
   expect(io.target.files["LOG.md"]).toStartWith("<!-- AAAA-MM-DD");
   expect(io.target.files["MEMORY.md"]).toContain("- [Current](current.md) — Current\n");
   expect(io.target.files["MEMORY.md"]).not.toContain("old.md");
@@ -166,8 +169,8 @@ test("ai-memory apply writes the skeleton, indexes active pages only, and skips 
 
 test("apply runs the existing validator and exits 1 for log or index issues", (): void => {
   const cases: readonly (readonly [Record<string, string>, string])[] = [
-    [{ "LOG.md": "invalid\n" }, "LOG.md:1: line format: received"],
-    [{ "MEMORY.md": "- [Missing](missing.md)\n" }, "MEMORY.md: link target: received"],
+    [{ "MEMORY.md": markedIndex(), "LOG.md": "invalid\n" }, "LOG.md:1: line format: received"],
+    [{ "MEMORY.md": markedIndex("- [Missing](missing.md)\n") }, "MEMORY.md: link target: received"],
   ];
   for (const [files, issue] of cases) {
     const io: FakeMigrationIO = withRecords(["#0 2026-11-19 New"], new FakeMigrationDestination(files));
@@ -190,7 +193,7 @@ test("retries repair an unlinked file from this migration and preserve an unrela
   const io: FakeMigrationIO = withProject(
     { "notes/partial.md": "# Current value", "notes/existing.md": "# Unrelated source" },
     new FakeMigrationDestination({
-      "MEMORY.md": "- [Existing](existing.md) — A fact\n",
+      "MEMORY.md": markedIndex("- [Existing](existing.md) — A fact\n"),
       "partial.md": own,
       "existing.md": unrelated,
     }),
@@ -201,7 +204,7 @@ test("retries repair an unlinked file from this migration and preserve an unrela
   expect(io.target.files["partial.md"]).toBe(own);
   expect(io.target.files["existing.md"]).toBe(unrelated);
   expect(io.target.files["MEMORY.md"]).toBe(
-    "- [Existing](existing.md) — A fact\n- [partial](partial.md) — Prior value\n",
+    markedIndex("- [Existing](existing.md) — A fact\n- [partial](partial.md) — Prior value\n"),
   );
   expect(runMigration(args, io).exitCode).toBe(0);
   expect(io.target.writes).toHaveLength(1);
@@ -252,7 +255,7 @@ test("applying twice indexes a truncated inline-code title exactly once and pass
   for (let run: number = 0; run < 2; run++) {
     const result: ReturnType<typeof runMigration> = runMigration(args, io);
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain("ok: 1 memory files, MEMORY.md 2 lines");
+    expect(result.output).toContain("ok: 1 memory files, MEMORY.md 3 lines");
     const lines: string[] = (io.target.files["MEMORY.md"] ?? "").split("\n");
     expect(lines.filter((line: string): boolean => line.includes(`](${file})`))).toHaveLength(1);
   }

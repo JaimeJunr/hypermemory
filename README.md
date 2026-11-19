@@ -52,6 +52,10 @@ bun run migrate ai-memory --project <nome> <destino>
 
 Sem `--apply`, o comando só mostra o plano e não grava nada. Use `--from <pasta>` para indicar outra origem.
 
+## Versões
+
+As mudanças de cada versão estão no [CHANGELOG.md](CHANGELOG.md). O wrapper do repositório, `bin/hypermemory`, aceita `check`, `migrate` e `upgrade`. Quando `hypermemory` estiver no PATH, use `hypermemory upgrade <pasta>` para ver o plano e `hypermemory upgrade <pasta> --apply` para criar o backup e atualizar. Também é possível usar `bun run upgrade <pasta> [--apply]`.
+
 ## O que ficou de fora
 
 - Do OptMem: o script `memo`, o registro de largura fixa e a árvore binária de resumos. O papel dos resumos passa para os arquivos e o índice.

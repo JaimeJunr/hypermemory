@@ -1,3 +1,4 @@
+import { CURRENT_FORMAT, formatMarker, readFormat } from "../format";
 import { validateIndexBudget, visitIndexTargets } from "../indexes";
 import type { Issue } from "../issue";
 import { appendLines } from "../markdown";
@@ -125,7 +126,8 @@ function finishMain(indexes: ReadonlyMap<string, string>, mainLines: string[], e
   const archive: string = archiveName(indexes, previous);
   if (!indexes.has(archive)) edits.push({ file: archive, content: previous, lines: [] });
   mainLines.unshift(indexLine("Existing memories", archive, "Índice anterior"));
-  edits.push({ file: MAIN_INDEX, content: appendLines("", mainLines), lines: mainLines });
+  const marker: string = readFormat(previous) === BigInt(CURRENT_FORMAT) ? formatMarker(CURRENT_FORMAT) : "";
+  edits.push({ file: MAIN_INDEX, content: appendLines(marker, mainLines), lines: mainLines });
 }
 
 function groupedIndexes(indexes: ReadonlyMap<string, string>, domains: readonly DomainGroup[]): IndexEdit[] {

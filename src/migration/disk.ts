@@ -1,44 +1,28 @@
-import { randomUUID } from "node:crypto";
 import {
   appendFileSync,
   closeSync,
   constants,
   type Dirent,
   fstatSync,
-  linkSync,
   lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
   readFileSync,
   realpathSync,
-  renameSync,
-  rmdirSync,
   type Stats,
-  unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatIssue } from "../cli";
-import { receivedIssue } from "../issue";
+import { fail, hasCode, stageAndWrite, verifyChange, withWriteLock } from "../file-writes";
 import type { MigrationDestination, MigrationIO, MigrationSource } from "../migrate";
 import { DirectoryMemoryReader, GitPreviousLogReader, ProcessGitRunner } from "../readers";
+import { assertCurrentDestination } from "./destination-format";
 import type { FileChange, Skeleton } from "./plan";
 import type { WikiEntry } from "./wiki";
 
 const LOG_FILE: string = "LOG.md";
-
-function hasCode(error: unknown, code: string): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  return "code" in error && error.code === code;
-}
-
-function fail(file: string, field: string, value: unknown, expected: string): never {
-  const message: string = formatIssue(receivedIssue(file, field, value, expected));
-  throw new Error(message);
-}
 
 class DirectorySource implements MigrationSource {
   entries(directory: string): WikiEntry[] | undefined {
@@ -106,23 +90,6 @@ function ensureOutsideSource(directory: string, source: string): void {
   }
 }
 
-function verifyChange(path: string, change: FileChange): Stats | undefined {
-  const stat: Stats | undefined = lstatSync(path, { throwIfNoEntry: false });
-  if (stat !== undefined && (!stat.isFile() || stat.nlink !== 1)) {
-    fail(path, "file", path, "a regular unshared file");
-  }
-  const content: string | undefined = stat === undefined ? undefined : readFileSync(path, "utf8");
-  if (content !== change.before) {
-    fail(
-      path,
-      "file state",
-      content === undefined ? "missing" : "present with different contents",
-      "the same file state as during planning",
-    );
-  }
-  return stat;
-}
-
 function appendLog(path: string, before: string, content: string): void {
   const fd: number = openSync(path, constants.O_RDWR | constants.O_APPEND | constants.O_NOFOLLOW);
   try {
@@ -137,39 +104,11 @@ function appendLog(path: string, before: string, content: string): void {
   }
 }
 
-function stageAndWrite(path: string, change: FileChange, stat: Stats | undefined): void {
-  const temporary: string = join(dirname(path), `.hypermemory-${randomUUID()}.tmp`);
-  const fd: number = openSync(temporary, "wx", stat === undefined ? undefined : stat.mode & 0o777);
-  try {
-    try {
-      writeFileSync(fd, change.content, "utf8");
-    } finally {
-      closeSync(fd);
-    }
-    verifyChange(path, change);
-    if (stat === undefined) linkSync(temporary, path);
-    else renameSync(temporary, path);
-  } finally {
-    if (lstatSync(temporary, { throwIfNoEntry: false }) !== undefined) unlinkSync(temporary);
-  }
-}
-
 function writeChange(directory: string, change: FileChange): void {
   const path: string = join(directory, change.file);
   const stat: Stats | undefined = verifyChange(path, change);
   if (change.file === LOG_FILE && change.before !== undefined) appendLog(path, change.before, change.content);
   else stageAndWrite(path, change, stat);
-}
-
-function lockDirectory(directory: string): string {
-  const lock: string = join(directory, ".hypermemory-migrate.lock");
-  try {
-    mkdirSync(lock);
-    return lock;
-  } catch (error: unknown) {
-    if (hasCode(error, "EEXIST")) fail(lock, "migration lock", "present", "an unlocked destination");
-    throw error;
-  }
 }
 
 class DirectoryDestination implements MigrationDestination {
@@ -182,20 +121,24 @@ class DirectoryDestination implements MigrationDestination {
     private readonly source: string,
   ) {
     this.directory = destinationPath(directory);
+    ensureOutsideSource(this.directory, source);
     this.reader = new OptionalDirectoryReader(this.directory);
     this.previousLog = new GitPreviousLogReader(this.directory, new ProcessGitRunner());
   }
 
+  exists(): boolean {
+    return lstatSync(this.directory, { throwIfNoEntry: false }) !== undefined;
+  }
+
   apply(changes: readonly FileChange[]): void {
     ensureOutsideSource(this.directory, this.source);
-    mkdirSync(this.directory, { recursive: true });
-    const lock: string = lockDirectory(this.directory);
-    try {
+    mkdirSync(dirname(this.directory), { recursive: true });
+    withWriteLock(this.directory, (): void => {
+      if (this.exists()) assertCurrentDestination(this.reader, this.directory);
       for (const change of changes) verifyChange(join(this.directory, change.file), change);
+      mkdirSync(this.directory, { recursive: true });
       for (const change of changes) writeChange(this.directory, change);
-    } finally {
-      rmdirSync(lock);
-    }
+    });
   }
 }
 

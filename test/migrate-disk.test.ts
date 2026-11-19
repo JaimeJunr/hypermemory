@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runMigration } from "../src/migrate";
 import { DiskMigrationIO } from "../src/migration/disk";
+import { markedIndex } from "./fixtures";
 import { optRecord, projectFiles } from "./migrate-fixtures";
 
 interface TemporaryDir extends Disposable {
@@ -62,7 +63,7 @@ test("disk migration dry run leaves a nested destination absent, and apply write
   expect(existsSync(join(parent, "nested"))).toBe(false);
   const applied: Invocation = invoke([...args, "--apply"]);
   expect(applied.exitCode).toBe(0);
-  expect(applied.output).toContain("ok: 0 memory files, MEMORY.md 1 lines");
+  expect(applied.output).toContain("ok: 0 memory files, MEMORY.md 2 lines");
   expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toBe(readFileSync("memory/MEMORY.md", "utf8"));
   expect(readFileSync(join(dest, "LOG.md"), "utf8")).toBe(
     `${readFileSync("memory/LOG.md", "utf8")}2026-11-19 | event | Unique note\n`,
@@ -72,12 +73,27 @@ test("disk migration dry run leaves a nested destination absent, and apply write
   expect(readFileSync(join(source, "LOG.txt")).equals(optRecord("#0 2026-11-19 Unique note"))).toBe(true);
 });
 
+test("existing legacy directories require upgrade even if they are empty or lack an index", (): void => {
+  using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
+  const source: string = optSource(temporary.path);
+  const dest: string = join(temporary.path, "dest");
+  mkdirSync(dest);
+  for (const initial of [[], ["LOG.md"]]) {
+    for (const file of initial) writeFileSync(join(dest, file), "");
+    const result: Invocation = invoke(["optmem", "--from", source, dest, "--apply"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain(`run hypermemory upgrade ${dest}`);
+    expect(readdirSync(dest)).toEqual(initial);
+  }
+});
+
 test("disk migration appends to the existing log without replacing its inode", (): void => {
   using temporary = mkdtempDisposableSync(join(tmpdir(), "hypermemory-disk-test-"));
   const source = optSource(temporary.path);
   const dest = join(temporary.path, "dest");
   const log = join(dest, "LOG.md");
   mkdirSync(dest);
+  writeFileSync(join(dest, "MEMORY.md"), markedIndex());
   const before = "2026-11-18 | event | Previous note\n";
   writeFileSync(log, before);
   const inode = statSync(log).ino;
@@ -112,11 +128,12 @@ test("disk migration refuses to append through symlinked and hard-linked logs", 
   ] as const) {
     const dest: string = join(parent, kind);
     mkdirSync(dest);
+    writeFileSync(join(dest, "MEMORY.md"), markedIndex());
     attach(original, join(dest, "LOG.md"));
     const result: Invocation = invoke(["optmem", "--from", source, dest, "--apply"]);
     expect(result.exitCode).toBe(1);
     expect(result.output).toMatch(/received .*expected .*regular .*file/);
-    expect(readdirSync(dest)).toEqual(["LOG.md"]);
+    expect(readdirSync(dest).sort()).toEqual(["LOG.md", "MEMORY.md"]);
   }
   expect(readFileSync(original, "utf8")).toBe("2026-11-19 | event | Original\n");
 });
@@ -128,7 +145,7 @@ test("the package script invokes the CLI in dry-run and apply modes", (): void =
   const args: string[] = ["optmem", "--from", source, join(parent, "dest")];
   for (const [flags, expected] of [
     [[], "Dry run"],
-    [["--apply"], "ok: 0 memory files, MEMORY.md 1 lines"],
+    [["--apply"], "ok: 0 memory files, MEMORY.md 2 lines"],
   ] as const) {
     const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([process.execPath, "run", "migrate", ...args, ...flags]);
     expect(result.exitCode).toBe(0);
@@ -149,14 +166,14 @@ test("disk migration refuses to replace a hard-linked MEMORY.md and leaves other
   const project: string = join(wiki, "workspace/project");
   const source: string = join(project, "index.md");
   const dest: string = join(temporary.path, "dest");
-  writeFixtures(projectFiles(project, "Example", { "index.md": "# Original\n", "notes/one.md": "# One" }));
+  writeFixtures(projectFiles(project, "Example", { "index.md": markedIndex("# Original\n"), "notes/one.md": "# One" }));
   mkdirSync(dest);
   linkSync(source, join(dest, "MEMORY.md"));
   const result: Invocation = invoke(["ai-memory", "--from", wiki, "--project", "Example", dest, "--apply"]);
   expect(result.exitCode).toBe(1);
   expect(result.output).toMatch(/received .*expected .*regular .*file/);
   expect(readdirSync(dest)).toEqual(["MEMORY.md"]);
-  expect(readFileSync(source, "utf8")).toBe("# Original\n");
+  expect(readFileSync(source, "utf8")).toBe(markedIndex("# Original\n"));
 });
 
 test("disk migration errors identify files received in place of source and destination directories", (): void => {
@@ -185,7 +202,7 @@ test("real ai-memory applies overflow indexes and leaves all 151 pages and index
   const args: string[] = ["ai-memory", "--from", wiki, "--project", "Example", dest, "--apply"];
   const first: Invocation = invoke(args);
   expect(first.exitCode).toBe(0);
-  expect(first.output).toContain("ok: 151 memory files, MEMORY.md 3 lines");
+  expect(first.output).toContain("ok: 151 memory files, MEMORY.md 4 lines");
   expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toContain("150 memórias de concept migradas do ai-memory");
   expect(readFileSync(join(dest, "index-concept.md"), "utf8").split("\n")).toHaveLength(152);
   expect(readdirSync(dest)).toHaveLength(155);

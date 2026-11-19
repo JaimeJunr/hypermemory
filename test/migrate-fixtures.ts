@@ -2,7 +2,7 @@ import { dirname, relative } from "node:path";
 import type { MigrationDestination, MigrationIO, MigrationSource } from "../src/migrate";
 import type { FileChange, Skeleton } from "../src/migration/plan";
 import type { WikiEntry, WikiReader } from "../src/migration/wiki";
-import { FakeMemoryReader, FakePreviousLogReader } from "./fixtures";
+import { FakeMemoryReader, FakePreviousLogReader, markedIndex } from "./fixtures";
 
 export class FakeWikiReader implements WikiReader {
   readonly reads: string[] = [];
@@ -71,6 +71,10 @@ export class FakeMigrationDestination implements MigrationDestination {
     this.previousLog = new FakePreviousLogReader(previousLog);
   }
 
+  exists(): boolean {
+    return Object.keys(this.files).length > 0;
+  }
+
   apply(changes: readonly FileChange[]): void {
     this.writes.push([...changes]);
     for (const { file, content } of changes) this.files[file] = content;
@@ -80,7 +84,7 @@ export class FakeMigrationDestination implements MigrationDestination {
 export class FakeMigrationIO implements MigrationIO {
   readonly home: string = "/home/test";
   readonly skeleton: Skeleton = {
-    memory: "<!-- Índice Hypermemory: teste -->\n",
+    memory: markedIndex("<!-- Índice Hypermemory: teste -->\n"),
     log: "<!-- AAAA-MM-DD | kind | texto -->\n",
   };
   readonly opened: string[][] = [];

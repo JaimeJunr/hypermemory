@@ -3,13 +3,13 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type MemorySources, openDirectory, runCli } from "../src/cli";
-import { FakeMemoryReader, FakePreviousLogReader, memory } from "./fixtures";
+import { FakeMemoryReader, FakePreviousLogReader, markedIndex, memory } from "./fixtures";
 
 function openFixture(directory: string): MemorySources {
   if (directory !== "fixture") throw new Error("unknown fixture");
   return {
     reader: new FakeMemoryReader({
-      "MEMORY.md": "[Fact](fact.md)\n",
+      "MEMORY.md": markedIndex("[Fact](fact.md)\n"),
       "fact.md": memory("fact"),
     }),
     previousLog: new FakePreviousLogReader(),
@@ -19,11 +19,11 @@ function openFixture(directory: string): MemorySources {
 test("CLI opens a real memory directory from disk", (): void => {
   const directory = mkdtempSync(join(tmpdir(), "hypermemory-cli-"));
   try {
-    writeFileSync(join(directory, "MEMORY.md"), "[Fact](fact.md)\n");
+    writeFileSync(join(directory, "MEMORY.md"), markedIndex("[Fact](fact.md)\n"));
     writeFileSync(join(directory, "fact.md"), memory("fact"));
     expect(runCli([directory], openDirectory)).toEqual({
       exitCode: 0,
-      output: ["ok: 1 memory files, MEMORY.md 1 lines"],
+      output: ["ok: 1 memory files, MEMORY.md 2 lines"],
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -33,7 +33,7 @@ test("CLI opens a real memory directory from disk", (): void => {
 test("CLI returns exit zero and a count summary for a valid directory", (): void => {
   expect(runCli(["fixture"], openFixture)).toEqual({
     exitCode: 0,
-    output: ["ok: 1 memory files, MEMORY.md 1 lines"],
+    output: ["ok: 1 memory files, MEMORY.md 2 lines"],
   });
 });
 
@@ -42,7 +42,7 @@ test("CLI returns exit one and one output line per issue, with log line numbers"
     ["fixture"],
     (_directory: string): MemorySources => ({
       reader: new FakeMemoryReader({
-        "MEMORY.md": "[Missing](missing.md)",
+        "MEMORY.md": markedIndex("[Missing](missing.md)"),
         "LOG.md": "<!-- comment -->\ninvalid",
       }),
       previousLog: new FakePreviousLogReader(),
