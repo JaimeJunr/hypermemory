@@ -9,12 +9,18 @@ function checkFrontmatter(content: string): readonly Issue[] {
 
 test("frontmatter accepts native YAML, optional kind, and all type/kind pairs", (): void => {
   const pairs: readonly (readonly [string, string | undefined])[] = [
-    ["user", "profile"], ["feedback", "rule"], ["reference", "reference"],
-    ["project", "decision"], ["project", "gotcha"], ["project", "procedure"],
-    ["project", "concept"], ["project", "session"], ["project", undefined],
+    ["user", "profile"],
+    ["feedback", "rule"],
+    ["reference", "reference"],
+    ["project", "decision"],
+    ["project", "gotcha"],
+    ["project", "procedure"],
+    ["project", "concept"],
+    ["project", "session"],
+    ["project", undefined],
   ];
   for (const [type, kind] of pairs) {
-    const metadata: string = kind ? "type: " + type + "\nkind: " + kind + "\nstatus: open" : "type: " + type;
+    const metadata: string = kind ? `type: ${type}\nkind: ${kind}\nstatus: open` : `type: ${type}`;
     expect(checkFrontmatter(memory("fact-2026", metadata, '"A fact: with punctuation"'))).toEqual([]);
   }
 });
@@ -34,7 +40,10 @@ test("frontmatter rejects missing delimiters, invalid YAML, and non-mapping YAML
   for (const content of ["Body", "---\nname: [\n---", "---\n- fact\n---", "---\nname: fact"]) {
     const issues: readonly Issue[] = checkFrontmatter(content);
     expect(issues).toHaveLength(1);
-    expect(issues[0]).toMatchObject({ file: "fact.md", message: expect.stringMatching(/frontmatter: received .*expected/) });
+    expect(issues[0]).toMatchObject({
+      file: "fact.md",
+      message: expect.stringMatching(/frontmatter: received .*expected/),
+    });
   }
 });
 
@@ -56,19 +65,16 @@ test("frontmatter rejects kind values outside the given type, including null", (
     { file: "fact.md", message: 'metadata.kind: received "rule", expected one of profile for metadata.type "user"' },
   ]);
   expect(checkFrontmatter(memory("fact", "type: reference\nkind: null"))).toEqual([
-    { file: "fact.md", message: 'metadata.kind: received null, expected one of reference for metadata.type "reference"' },
+    {
+      file: "fact.md",
+      message: 'metadata.kind: received null, expected one of reference for metadata.type "reference"',
+    },
   ]);
 });
 
 // Âncora YAML cíclica ficou fora: o parser do Bun 1.3 recusa o bloco inteiro e o 1.4 aceita.
 test("frontmatter rejects non-finite and non-string field values", (): void => {
-  const content: string = [
-    "---",
-    "name: 42",
-    "description: .inf",
-    "metadata: { type: project }",
-    "---",
-  ].join("\n");
+  const content: string = ["---", "name: 42", "description: .inf", "metadata: { type: project }", "---"].join("\n");
   expect(checkFrontmatter(content)).toEqual([
     { file: "fact.md", message: expect.stringMatching(/^name: received 42.*expected kebab-case$/) },
     { file: "fact.md", message: "description: received Infinity, expected a non-empty string" },
@@ -77,8 +83,8 @@ test("frontmatter rejects non-finite and non-string field values", (): void => {
 
 test("frontmatter accepts a BOM and CRLF but rejects a block after the file body", (): void => {
   const frontmatter: string = memory("fact");
-  expect(checkFrontmatter("\uFEFF" + frontmatter.replaceAll("\n", "\r\n"))).toEqual([]);
-  expect(checkFrontmatter("Body\n" + frontmatter)).toEqual([
+  expect(checkFrontmatter(`\uFEFF${frontmatter.replaceAll("\n", "\r\n")}`)).toEqual([]);
+  expect(checkFrontmatter(`Body\n${frontmatter}`)).toEqual([
     { file: "fact.md", message: expect.stringMatching(/^frontmatter: received .*expected/) },
   ]);
 });

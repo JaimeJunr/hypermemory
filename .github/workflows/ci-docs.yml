@@ -1,0 +1,71 @@
+name: CI docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["**.md", "modelos/**", "memory/**"]
+  push:
+    branches: [main]
+    paths: ["**.md", "modelos/**", "memory/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      docs-only: ${{ steps.diff.outputs.docs-only }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      # paths also matches mixed changes. Use the required check names only for docs-only diffs.
+      - id: diff
+        shell: bash
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            revisions=("$PR_BASE...$PR_HEAD")
+          else
+            if [[ "$PUSH_BEFORE" =~ ^0+$ ]]; then
+              PUSH_BEFORE=$(git hash-object -t tree /dev/null)
+            elif ! git cat-file -e "$PUSH_BEFORE"; then
+              git fetch --no-tags origin "$PUSH_BEFORE"
+            fi
+            revisions=("$PUSH_BEFORE" "$GITHUB_SHA")
+          fi
+          if git diff --quiet --no-renames "${revisions[@]}" -- . \
+            ':(exclude,glob)**/*.md' ':(exclude,glob)modelos/**' ':(exclude,glob)memory/**'; then
+            echo 'docs-only=true' >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            if [[ "$status" != 1 ]]; then exit "$status"; fi
+            echo 'docs-only=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  static:
+    needs: classify
+    name: ${{ needs.classify.outputs.docs-only == 'true' && 'static' || 'docs-static' }}
+    if: needs.classify.outputs.docs-only == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Documentation-only change"
+
+  test:
+    needs: classify
+    name: ${{ needs.classify.outputs.docs-only == 'true' && 'test' || 'docs-test' }}
+    if: needs.classify.outputs.docs-only == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Documentation-only change"

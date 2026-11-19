@@ -1,8 +1,8 @@
+import { type MemoryFile, validateFrontmatter } from "./frontmatter";
 import { isDomainIndex, validateIndexBudget, validateIndexLinks } from "./indexes";
-import { validateFrontmatter, type MemoryFile } from "./frontmatter";
-import { validateHandoffs, validateSupersedes } from "./status";
-import { validateLogHistory, validateLogLines } from "./log";
 import type { Issue } from "./issue";
+import { validateLogHistory, validateLogLines } from "./log";
+import { validateHandoffs, validateSupersedes } from "./status";
 
 export type { Issue } from "./issue";
 
@@ -35,17 +35,14 @@ function loadIndexes(reader: MemoryReader, files: readonly string[]): Map<string
   return indexes;
 }
 
-export function validateMemory(
-  reader: MemoryReader,
-  previousLog: PreviousLogReader,
-): ValidationResult {
+export function validateMemory(reader: MemoryReader, previousLog: PreviousLogReader): ValidationResult {
   const issues: Issue[] = [];
   const files: string[] = [...reader.list()].sort();
   const indexes: Map<string, string> = loadIndexes(reader, files);
   const indexLines: number = validateIndexBudget(indexes.get("MEMORY.md") ?? "", issues);
-  const memories: MemoryFile[] = files.filter(isMemoryFile).map(
-    (file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues),
-  );
+  const memories: MemoryFile[] = files
+    .filter(isMemoryFile)
+    .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues));
   validateIndexLinks(indexes, new Set(files), memories, issues);
   validateSupersedes(memories, issues);
   validateHandoffs(memories, issues);

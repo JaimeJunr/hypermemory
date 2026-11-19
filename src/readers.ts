@@ -1,11 +1,9 @@
-import { readdirSync, readFileSync, type Dirent } from "node:fs";
+import { type Dirent, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MemoryReader, PreviousLogReader } from "./validator";
 
 export class DirectoryMemoryReader implements MemoryReader {
-  constructor(
-    private readonly directory: string,
-  ) {}
+  constructor(private readonly directory: string) {}
 
   list(): string[] {
     const entries: Dirent[] = readdirSync(this.directory, { withFileTypes: true });
@@ -45,7 +43,7 @@ export class ProcessGitRunner implements GitRunner {
 
 function gitOutput(result: GitResult): string {
   if (result.exitCode !== 0) {
-    throw new Error(result.stderr.trim() || "Git exited with status " + result.exitCode);
+    throw new Error(result.stderr.trim() || `Git exited with status ${result.exitCode}`);
   }
   return result.stdout;
 }
@@ -59,14 +57,14 @@ export class GitPreviousLogReader implements PreviousLogReader {
   read(): string | undefined {
     const prefix: GitResult = this.git.run(this.directory, ["rev-parse", "--show-prefix"]);
     if (prefix.exitCode === 128 && prefix.stderr.startsWith("fatal: not a git repository")) return undefined;
-    const logPath: string = gitOutput(prefix).replace(/\n$/, "") + "LOG.md";
+    const logPath: string = `${gitOutput(prefix).replace(/\n$/, "")}LOG.md`;
     const head: GitResult = this.git.run(this.directory, ["rev-parse", "--verify", "--quiet", "HEAD"]);
     if (head.exitCode === 1) return undefined;
     gitOutput(head);
-    const treeEntry: string = gitOutput(this.git.run(this.directory, [
-      "ls-tree", "--full-tree", "-z", "HEAD", "--", ":(top,literal)" + logPath,
-    ]));
+    const treeEntry: string = gitOutput(
+      this.git.run(this.directory, ["ls-tree", "--full-tree", "-z", "HEAD", "--", `:(top,literal)${logPath}`]),
+    );
     if (!/^\d+ blob /.test(treeEntry)) return undefined;
-    return gitOutput(this.git.run(this.directory, ["show", "HEAD:" + logPath]));
+    return gitOutput(this.git.run(this.directory, ["show", `HEAD:${logPath}`]));
   }
 }

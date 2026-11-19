@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { isMapping, nonEmptyString, splitFrontmatter } from "../frontmatter";
-import { receivedIssue, type Issue } from "../issue";
+import { type Issue, receivedIssue } from "../issue";
 
 export interface WikiEntry {
   readonly name: string;
@@ -64,11 +64,18 @@ function parseFields(yaml: string): Readonly<Record<string, unknown>> | undefine
   }
 }
 
-function manifestName(reader: WikiReader, directory: string, field: "workspace" | "project", entries: readonly WikiEntry[]): string | undefined {
+function manifestName(
+  reader: WikiReader,
+  directory: string,
+  field: "workspace" | "project",
+  entries: readonly WikiEntry[],
+): string | undefined {
   if (!entries.some((entry: WikiEntry): boolean => !entry.directory && entry.name === "_meta.md")) return undefined;
   const content: string = reader.read(join(directory, "_meta.md"));
   const { yaml } = splitFrontmatter(content);
-  const fields: Readonly<Record<string, unknown>> | undefined = parseFields(yaml ?? (field === "workspace" ? content : ""));
+  const fields: Readonly<Record<string, unknown>> | undefined = parseFields(
+    yaml ?? (field === "workspace" ? content : ""),
+  );
   const name: unknown = fields?.[field];
   return nonEmptyString(name) ? name : undefined;
 }
@@ -99,10 +106,10 @@ export function findProjects(reader: WikiReader, root: string): WikiProject[] {
 
 function* projectPaths(reader: WikiReader, directory: string, prefix: string = ""): Generator<string> {
   const entries: WikiEntry[] = [...(reader.entries(directory) ?? [])];
-  entries.sort((a: WikiEntry, b: WikiEntry): number => a.name < b.name ? -1 : Number(a.name > b.name));
+  entries.sort((a: WikiEntry, b: WikiEntry): number => (a.name < b.name ? -1 : Number(a.name > b.name)));
   for (const entry of entries) {
     const path: string = prefix + entry.name;
-    if (entry.directory) yield* projectPaths(reader, join(directory, entry.name), path + "/");
+    if (entry.directory) yield* projectPaths(reader, join(directory, entry.name), `${path}/`);
     else yield path;
   }
 }
@@ -117,7 +124,8 @@ function readPage(reader: WikiReader, directory: string, path: string, category:
   const content: string = reader.read(join(directory, path));
   const { yaml, body } = splitFrontmatter(content);
   const hasOpening: boolean = /^\uFEFF?---[ \t]*(?:\r?\n|$)/.test(content);
-  const fields: Readonly<Record<string, unknown>> | undefined = yaml !== undefined ? parseFields(yaml) : hasOpening ? undefined : {};
+  const fields: Readonly<Record<string, unknown>> | undefined =
+    yaml !== undefined ? parseFields(yaml) : hasOpening ? undefined : {};
   return fields === undefined
     ? receivedIssue(path, "frontmatter", yaml ?? content, "a YAML mapping between --- delimiters")
     : { ...category, path, fields, body };

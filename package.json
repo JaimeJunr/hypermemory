@@ -3,11 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test",
+    "test": "bun test --coverage",
     "check": "bun run src/cli.ts memory",
-    "migrate": "bun run src/migrate.ts"
+    "migrate": "bun run src/migrate.ts",
+    "lint": "biome ci .",
+    "typecheck": "tsc --noEmit -p .",
+    "size": "bun run scripts/check-size.ts",
+    "gate": "bun run lint && bun run typecheck && bun run size && bun run test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.8",
     "@types/bun": "^1.4.4",
     "typescript": "^7.0.2"
   }

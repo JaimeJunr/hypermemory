@@ -1,10 +1,17 @@
 import { join } from "node:path";
-import { formatIssue, runCli, type MemorySources } from "./cli";
+import { formatIssue, type MemorySources, runCli } from "./cli";
 import { receivedIssue } from "./issue";
-import { parseMigrationOptions, type MigrationOptions } from "./migration/args";
+import { type MigrationOptions, parseMigrationOptions } from "./migration/args";
 import { DiskMigrationIO } from "./migration/disk";
 import { readOptMemRecords } from "./migration/optmem";
-import { describePlan, planOptMem, planWiki, type FileChange, type MigrationPlan, type Skeleton } from "./migration/plan";
+import {
+  describePlan,
+  type FileChange,
+  type MigrationPlan,
+  planOptMem,
+  planWiki,
+  type Skeleton,
+} from "./migration/plan";
 import { findProjects, readProject, type WikiEntry, type WikiProject, type WikiReader } from "./migration/wiki";
 
 export interface MigrationSource extends WikiReader {
@@ -37,24 +44,29 @@ function selectProject(projects: readonly WikiProject[], name: string): WikiProj
   const matches: WikiProject[] = projects.filter((project: WikiProject): boolean => project.name === name);
   const [match] = matches;
   if (matches.length === 1 && match !== undefined) return match;
-  const expected: string = matches.length > 1
-    ? "a unique project name (found in " + matches.map(({ directory }): string => JSON.stringify(directory)).join(", ") + ")"
-    : "one of " + JSON.stringify([...new Set(projects.map(({ name }): string => name))].sort());
+  const expected: string =
+    matches.length > 1
+      ? `a unique project name (found in ${matches.map(({ directory }): string => JSON.stringify(directory)).join(", ")})`
+      : `one of ${JSON.stringify([...new Set(projects.map(({ name }): string => name))].sort())}`;
   throw new Error(receivedIssue("ai-memory", "--project", name, expected).message);
 }
 
 function listProjects(reader: WikiReader, projects: readonly WikiProject[]): MigrationResult {
-  const counts: ProjectCount[] = projects.map((project: WikiProject): ProjectCount => ({
-    name: project.name, count: readProject(reader, project).pages.length,
-  }));
+  const counts: ProjectCount[] = projects.map(
+    (project: WikiProject): ProjectCount => ({
+      name: project.name,
+      count: readProject(reader, project).pages.length,
+    }),
+  );
   counts.sort((a: ProjectCount, b: ProjectCount): number => b.count - a.count || a.name.localeCompare(b.name));
-  const output: string[] = counts.map(({ name, count }): string => name.replace(/[\r\n\t]/g, " ") + "\t" + count);
+  const output: string[] = counts.map(({ name, count }): string => `${name.replace(/[\r\n\t]/g, " ")}\t${count}`);
   return { exitCode: 0, output };
 }
 
 function optMemBytes(source: MigrationSource, directory: string): Uint8Array {
   const entries: readonly WikiEntry[] | undefined = source.entries(directory);
-  if (entries === undefined) throw new Error(receivedIssue(directory, "--from", directory, "an OptMem directory").message);
+  if (entries === undefined)
+    throw new Error(receivedIssue(directory, "--from", directory, "an OptMem directory").message);
   const log: WikiEntry | undefined = entries.find(({ name }): boolean => name === "LOG.txt");
   if (log === undefined) return new Uint8Array(0);
   const file: string = join(directory, log.name);
@@ -68,14 +80,18 @@ function optMemBytes(source: MigrationSource, directory: string): Uint8Array {
 }
 
 function applyPlan(
-  options: Extract<MigrationOptions, { list: false }>, plan: MigrationPlan, destination: MigrationDestination,
+  options: Extract<MigrationOptions, { list: false }>,
+  plan: MigrationPlan,
+  destination: MigrationDestination,
 ): MigrationResult {
   const output: string[] = describePlan(plan, options.apply);
   if (!options.apply) return { exitCode: 0, output };
   try {
     if (plan.files.length > 0) destination.apply(plan.files);
   } catch (error: unknown) {
-    const message: string = formatIssue(receivedIssue(options.dest, "apply", errorText(error), "a writable, unchanged destination directory"));
+    const message: string = formatIssue(
+      receivedIssue(options.dest, "apply", errorText(error), "a writable, unchanged destination directory"),
+    );
     return { exitCode: 1, output: [...output, message] };
   }
   const validation: ReturnType<typeof runCli> = runCli([options.dest], (): MemorySources => destination);

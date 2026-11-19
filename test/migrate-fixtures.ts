@@ -1,8 +1,8 @@
 import { dirname, relative } from "node:path";
 import type { MigrationDestination, MigrationIO, MigrationSource } from "../src/migrate";
 import type { FileChange, Skeleton } from "../src/migration/plan";
-import { FakeMemoryReader, FakePreviousLogReader } from "./fixtures";
 import type { WikiEntry, WikiReader } from "../src/migration/wiki";
+import { FakeMemoryReader, FakePreviousLogReader } from "./fixtures";
 
 export class FakeWikiReader implements WikiReader {
   readonly reads: string[] = [];
@@ -23,17 +23,17 @@ export class FakeWikiReader implements WikiReader {
   read(file: string): string {
     this.reads.push(file);
     const content: string | undefined = this.files[file];
-    if (content === undefined) throw new Error("Expected a fixture file, received " + file);
+    if (content === undefined) throw new Error(`Expected a fixture file, received ${file}`);
     return content;
   }
 }
 
 export function projectFiles(directory: string, name: string, pages: Record<string, string>): Record<string, string> {
   const files: Record<string, string> = {
-    [dirname(directory) + "/_meta.md"]: "---\nworkspace: Test space\n---\n",
-    [directory + "/_meta.md"]: "---\nproject: " + JSON.stringify(name) + "\n---\n",
+    [`${dirname(directory)}/_meta.md`]: "---\nworkspace: Test space\n---\n",
+    [`${directory}/_meta.md`]: `---\nproject: ${JSON.stringify(name)}\n---\n`,
   };
-  for (const [path, content] of Object.entries(pages)) files[directory + "/" + path] = content;
+  for (const [path, content] of Object.entries(pages)) files[`${directory}/${path}`] = content;
   return files;
 }
 
@@ -44,13 +44,16 @@ export class FakeMigrationSource extends FakeWikiReader implements MigrationSour
     files: Record<string, string> = {},
     private readonly binaries: Readonly<Record<string, Uint8Array>> = {},
   ) {
-    super({ ...Object.fromEntries(Object.keys(binaries).map((file: string): [string, string] => [file, ""])), ...files });
+    super({
+      ...Object.fromEntries(Object.keys(binaries).map((file: string): [string, string] => [file, ""])),
+      ...files,
+    });
   }
 
   bytes(file: string): Uint8Array {
     this.binaryReads.push(file);
     const content: Uint8Array | undefined = this.binaries[file];
-    if (content === undefined) throw new Error("Expected a binary fixture, received " + file);
+    if (content === undefined) throw new Error(`Expected a binary fixture, received ${file}`);
     return content;
   }
 }
@@ -60,7 +63,10 @@ export class FakeMigrationDestination implements MigrationDestination {
   readonly reader: FakeMemoryReader;
   readonly previousLog: FakePreviousLogReader;
 
-  constructor(readonly files: Record<string, string> = {}, previousLog?: string) {
+  constructor(
+    readonly files: Record<string, string> = {},
+    previousLog?: string,
+  ) {
     this.reader = new FakeMemoryReader(files);
     this.previousLog = new FakePreviousLogReader(previousLog);
   }
@@ -73,7 +79,10 @@ export class FakeMigrationDestination implements MigrationDestination {
 
 export class FakeMigrationIO implements MigrationIO {
   readonly home: string = "/home/test";
-  readonly skeleton: Skeleton = { memory: "<!-- Índice Hypermemory: teste -->\n", log: "<!-- AAAA-MM-DD | kind | texto -->\n" };
+  readonly skeleton: Skeleton = {
+    memory: "<!-- Índice Hypermemory: teste -->\n",
+    log: "<!-- AAAA-MM-DD | kind | texto -->\n",
+  };
   readonly opened: string[][] = [];
 
   constructor(

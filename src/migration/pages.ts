@@ -1,6 +1,6 @@
 import { posix } from "node:path";
 import { nonEmptyString } from "../frontmatter";
-import { receivedIssue, type Issue } from "../issue";
+import { type Issue, receivedIssue } from "../issue";
 import { markdownLines } from "../markdown";
 import type { Category, Skipped, WikiPage } from "./wiki";
 
@@ -34,11 +34,11 @@ function uniqueName(page: WikiPage, used: ReadonlySet<string>): string {
   const slugPath: string = page.path.slice(page.path.indexOf("/") + 1, -3);
   const base: string = slug(slugPath);
   if (!base.startsWith("index-") && !used.has(base)) return base;
-  const prefixed: string = page.kind + "-" + base;
+  const prefixed: string = `${page.kind}-${base}`;
   if (!used.has(prefixed)) return prefixed;
   let suffix: number = 2;
-  while (used.has(prefixed + "-" + suffix)) suffix++;
-  return prefixed + "-" + suffix;
+  while (used.has(`${prefixed}-${suffix}`)) suffix++;
+  return `${prefixed}-${suffix}`;
 }
 
 function namePages(pages: readonly WikiPage[]): NamedPage[] {
@@ -72,46 +72,65 @@ function oneLine(value: unknown): string | undefined {
 function descriptionFor(page: NamedPage): string {
   const heading: string | undefined = /^ {0,3}#[ \t]+(.+)$/m.exec(page.body)?.[1]?.replace(/[ \t]+#+[ \t]*$/, "");
   const firstBodyLine: string | undefined = markdownLines(page.body).find(nonEmptyString);
-  const description: string = oneLine(page.fields.abstract) ?? oneLine(page.fields.title)
-    ?? oneLine(heading) ?? oneLine(firstBodyLine) ?? page.name;
+  const description: string =
+    oneLine(page.fields.abstract) ??
+    oneLine(page.fields.title) ??
+    oneLine(heading) ??
+    oneLine(firstBodyLine) ??
+    page.name;
   return [...description].slice(0, 200).join("").trimEnd();
 }
 
 export function pageOrigin(project: string, path: string): string {
-  const projectRoot: string = "ai-memory:" + project + "/";
+  const projectRoot: string = `ai-memory:${project}/`;
   return projectRoot + path;
 }
 
 function replacementFor(page: NamedPage, resolve: LinkResolver, issues: Issue[]): string | undefined {
   const { status, superseded, superseded_by: reference } = page.fields;
   if (status !== "superseded" && superseded !== true && !nonEmptyString(reference)) return undefined;
-  const ref: string | undefined = nonEmptyString(reference) ? reference.trim().replace(/^\[\[(.*)\]\]$/, "$1") : undefined;
+  const ref: string | undefined = nonEmptyString(reference)
+    ? reference.trim().replace(/^\[\[(.*)\]\]$/, "$1")
+    : undefined;
   const target: string | undefined = ref === undefined ? undefined : resolve(ref);
   if (target !== undefined && target !== page.name) return target;
   issues.push(receivedIssue(page.path, "superseded_by", reference, "another page migrated in this run"));
   return undefined;
 }
 
-const YAML_INDICATOR: RegExp = /^[-?:,\[\]{}#&*!|>'"%@`]/;
+const YAML_INDICATOR: RegExp = /^[-?:,[\]{}#&*!|>'"%@`]/;
 const YAML_KEYWORD: RegExp = /^(?:true|false|null|~|[+-]?\.(?:inf|nan))$/i;
 const YAML_NUMBER: RegExp = /^[+-]?(?:0[xob][\da-f_]+|(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:e[+-]?\d[\d_]*)?)$/i;
 
 function yamlScalar(value: string): string {
-  const needsQuotes: boolean = value === "" || value !== value.trim() || YAML_INDICATOR.test(value)
-    || /:[\s]|:$|\s#|['"\\\x00-\x1f]/.test(value) || YAML_KEYWORD.test(value) || YAML_NUMBER.test(value);
+  const needsQuotes: boolean =
+    value === "" ||
+    value !== value.trim() ||
+    YAML_INDICATOR.test(value) ||
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: valor YAML com caractere de controle C0 precisa ir entre aspas e escapado.
+    /:[\s]|:$|\s#|['"\\\x00-\x1f]/.test(value) ||
+    YAML_KEYWORD.test(value) ||
+    YAML_NUMBER.test(value);
   return needsQuotes ? JSON.stringify(value) : value;
 }
 
 function emitFrontmatter(
-  page: NamedPage, description: string, project: string, replacement: string | undefined,
+  page: NamedPage,
+  description: string,
+  project: string,
+  replacement: string | undefined,
 ): string {
   const lines: string[] = [
-    "---", "name: " + yamlScalar(page.name), "description: " + yamlScalar(description), "metadata:",
-    "  type: " + yamlScalar(page.type), "  kind: " + yamlScalar(page.kind),
-    "  origin: " + yamlScalar(pageOrigin(project, page.path)),
+    "---",
+    `name: ${yamlScalar(page.name)}`,
+    `description: ${yamlScalar(description)}`,
+    "metadata:",
+    `  type: ${yamlScalar(page.type)}`,
+    `  kind: ${yamlScalar(page.kind)}`,
+    `  origin: ${yamlScalar(pageOrigin(project, page.path))}`,
   ];
   if (page.fields.pinned === true) lines.push("  pinned: true");
-  if (replacement !== undefined) lines.push("  status: superseded", "  superseded_by: " + yamlScalar(replacement));
+  if (replacement !== undefined) lines.push("  status: superseded", `  superseded_by: ${yamlScalar(replacement)}`);
   return lines.concat("---", "").join("\n");
 }
 
@@ -122,22 +141,26 @@ function renderPage(page: NamedPage, project: string, resolve: LinkResolver, iss
   const replacement: string | undefined = replacementFor(page, resolve, issues);
   const superseded: boolean = replacement !== undefined;
   const frontmatter: string = emitFrontmatter(page, description, project, replacement);
-  const body: string = page.body.replace(/\[\[([^\[\]\r\n]+)\]\]/g, (match: string, reference: string): string => {
+  const body: string = page.body.replace(/\[\[([^[\]\r\n]+)\]\]/g, (match: string, reference: string): string => {
     const target: string | undefined = resolve(reference);
-    return target === undefined ? match : "[[" + target + "]]";
+    return target === undefined ? match : `[[${target}]]`;
   });
   return { name, kind, type, title, description, superseded, content: frontmatter + body };
 }
 
 export function convertPages(
-  sources: readonly WikiPage[], project: string, existingFiles: ReadonlySet<string>,
+  sources: readonly WikiPage[],
+  project: string,
+  existingFiles: ReadonlySet<string>,
 ): ConvertedPages {
   const named: NamedPage[] = namePages(sources);
-  const pending: NamedPage[] = named.filter(({ name }): boolean => !existingFiles.has(name + ".md"));
-  const existing: NamedPage[] = named.filter(({ name }): boolean => existingFiles.has(name + ".md"));
+  const pending: NamedPage[] = named.filter(({ name }): boolean => !existingFiles.has(`${name}.md`));
+  const existing: NamedPage[] = named.filter(({ name }): boolean => existingFiles.has(`${name}.md`));
   const resolve: LinkResolver = linkTargets(named, new Set(pending.map(({ name }): string => name)));
   const issues: Issue[] = [];
-  const pages: MigratedPage[] = pending.map((page: NamedPage): MigratedPage => renderPage(page, project, resolve, issues));
-  const skips: Skipped[] = existing.map(({ name }): Skipped => ({ target: name + ".md", reason: "already exists" }));
+  const pages: MigratedPage[] = pending.map(
+    (page: NamedPage): MigratedPage => renderPage(page, project, resolve, issues),
+  );
+  const skips: Skipped[] = existing.map(({ name }): Skipped => ({ target: `${name}.md`, reason: "already exists" }));
   return { pages, existing, skips, issues };
 }

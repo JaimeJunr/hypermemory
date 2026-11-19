@@ -38,6 +38,10 @@ e2e/rodar.sh                 # todos: preferencia, evento, substituicao, handoff
 HM_RUNS=1 HM_PASS=1 e2e/rodar.sh evento
 ```
 
+## Qualidade
+
+Execute `bun run gate` para verificar a formatação e o lint com Biome, os tipos com TypeScript, o limite de 300 linhas por arquivo em `src/` e `test/` e os testes com cobertura mínima de 80% de linhas e funções por arquivo instrumentado.
+
 ## Migrar
 
 ```sh
