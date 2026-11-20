@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { answer, contextFor, summaryPath } from "../mod/hooks/inject-context.mjs";
+import { DELIVERED_MARK, projectSlug } from "../mod/hooks/handoff-rules";
+import { answer, contextFor, DELIVERED, summaryPath } from "../mod/hooks/inject-context.mjs";
 
 // O hook de comando é o único canal que o cc-plugin-sec-default deixa chegar ao modelo (medido em 2026-11-20):
 // ele entrega as regras na abertura e o resumo preparado pelo mod no primeiro prompt.
@@ -94,4 +95,17 @@ test("a resposta em processo traz o JSON do hook e fica vazia sem contexto ou co
   expect(JSON.parse(out).hookSpecificOutput.hookEventName).toBe("SessionStart");
   expect(answer(JSON.stringify({ hook_event_name: "Stop", session_id: SESSION, cwd: CWD }), "/h")).toBe("");
   expect(answer("{quebrado", "/h")).toBe("");
+});
+
+test("pasta de projeto com caminho longo fica dentro do limite de 255 bytes e igual nos dois lados", (): void => {
+  const long: string = `/repo/${"a".repeat(150)}/${"b".repeat(140)}`;
+  const slug: string = projectSlug(long);
+  expect(Buffer.byteLength(slug)).toBeLessThanOrEqual(255);
+  expect(projectSlug(`${long}x`)).not.toBe(slug);
+  expect(summaryPath("/h", long, SESSION)).toBe(`/h/.claude/hypermemory/sessoes/${slug}/.resumo-${SESSION}.md`);
+  expect(projectSlug("/mnt/xs1000/me/my.repo")).toBe("-mnt-xs1000-me-my-repo");
+});
+
+test("a marca de entregue é a mesma no hook e no mod", (): void => {
+  expect(DELIVERED).toBe(DELIVERED_MARK);
 });

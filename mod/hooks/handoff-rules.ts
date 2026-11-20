@@ -42,9 +42,22 @@ export interface Selection {
   readonly carried: readonly HandoffFile[];
 }
 
+// Marca que o hook de comando (inject-context.mjs, DELIVERED) põe no resumo ao entregá-lo.
+export const DELIVERED_MARK: string = "<!-- hypermemory: entregue -->";
+const SLUG_LIMIT: number = 200;
+
+// FNV-1a de 32 bits: o mesmo cálculo está em inject-context.mjs, para os dois lados acharem a mesma pasta.
+function hashOf(text: string): string {
+  let hash: number = 0x811c9dc5;
+  for (const char of text) hash = Math.imul(hash ^ (char.codePointAt(0) ?? 0), 0x01000193) >>> 0;
+  return hash.toString(16).padStart(8, "0");
+}
+
 // Mesmo critério do Claude Code para a pasta de ~/.claude/projects: tudo que não é letra ou dígito vira "-".
+// Caminho longo é cortado com hash no fim: nome de pasta passa de 255 bytes e dá ENAMETOOLONG (achado no PR 5).
 export function projectSlug(cwd: string): string {
-  return cwd.replace(/[^A-Za-z0-9]/g, "-");
+  const slug: string = cwd.replace(/[^A-Za-z0-9]/g, "-");
+  return slug.length > SLUG_LIMIT ? `${slug.slice(0, SLUG_LIMIT)}-${hashOf(cwd)}` : slug;
 }
 
 export function shortId(sessionId: string): string {
@@ -188,10 +201,32 @@ export function newestHandoffNames(names: readonly string[]): string[] {
   return names.filter(isHandoffFile).sort().reverse().slice(0, SCAN_LIMIT);
 }
 
+// Sessões com resumo gravado e ainda não entregue: fecharam (ou não chegaram) antes do primeiro prompt.
+export function undeliveredSessions(summaries: readonly HandoffFile[]): Set<string> {
+  const ids: string[] = summaries
+    .filter((entry: HandoffFile): boolean => !entry.content.startsWith(DELIVERED_MARK))
+    .map((entry: HandoffFile): string => entry.file.replace(/^\.resumo-/, "").replace(/\.md$/, ""));
+  return new Set(ids);
+}
+
+function claimerOf(claimedBy: string): string {
+  return claimedBy.split(" ").pop() ?? "";
+}
+
 // fresh: abertos de outras sessões, os mais recentes; carried: já pegos por esta sessão (a injeção se repete igual).
-export function selectHandoffs(files: readonly HandoffFile[], sessionId: string): Selection {
+// Pego por outra sessão que não recebeu o resumo conta como aberto: senão a sessão abandonada consome o handoff.
+export function selectHandoffs(
+  files: readonly HandoffFile[],
+  sessionId: string,
+  undelivered: ReadonlySet<string> = new Set(),
+): Selection {
   const own: string = `-${shortId(sessionId)}.md`;
-  const status = (entry: HandoffFile): ParsedHandoff => parseHandoff(entry.content);
+  const status = (entry: HandoffFile): ParsedHandoff => {
+    const parsed: ParsedHandoff = parseHandoff(entry.content);
+    const claimer: string = claimerOf(parsed.claimedBy);
+    const stranded: boolean = parsed.status === "claimed" && claimer !== sessionId && undelivered.has(claimer);
+    return stranded ? { ...parsed, status: "open" } : parsed;
+  };
   const sorted: HandoffFile[] = [...files].sort((a: HandoffFile, b: HandoffFile): number =>
     b.file.localeCompare(a.file),
   );

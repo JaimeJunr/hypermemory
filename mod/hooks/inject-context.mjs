@@ -7,12 +7,22 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DELIVERED = "<!-- hypermemory: entregue -->";
+// Mesma marca de handoff-rules.ts (DELIVERED_MARK): a sessão seguinte só reaproveita resumo sem ela.
+export const DELIVERED = "<!-- hypermemory: entregue -->";
+const SLUG_LIMIT = 200;
 const RULES_PATH = join(dirname(fileURLToPath(import.meta.url)), "agent-rules.md");
 
-/** @param {string} cwd */
+// FNV-1a de 32 bits, igual a hashOf em handoff-rules.ts. @param {string} text
+function hashOf(text) {
+  let hash = 0x811c9dc5;
+  for (const char of text) hash = Math.imul(hash ^ (char.codePointAt(0) ?? 0), 0x01000193) >>> 0;
+  return hash.toString(16).padStart(8, "0");
+}
+
+// Mesmo corte de projectSlug em handoff-rules.ts: caminho longo ganha hash para caber em 255 bytes. @param {string} cwd
 function projectSlug(cwd) {
-  return cwd.replace(/[^A-Za-z0-9]/g, "-");
+  const slug = cwd.replace(/[^A-Za-z0-9]/g, "-");
+  return slug.length > SLUG_LIMIT ? `${slug.slice(0, SLUG_LIMIT)}-${hashOf(cwd)}` : slug;
 }
 
 /** Mesmo caminho que o mod grava (session-flow.ts, summaryFile). @param {string} home @param {string} cwd @param {string} sessionId */

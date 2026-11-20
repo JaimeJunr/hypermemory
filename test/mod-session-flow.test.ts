@@ -152,5 +152,38 @@ test("prepareSummary grava o resumo onde o hook de comando lê, e nada sem sess�
 test("o arquivo de resumo não é lido como handoff por outra sessão", async () => {
   const io = new FakeSessionIo({ [`${DIR}/handoff-2026-11-19-090000-11111111.md`]: open("11111111") });
   await prepareSummary(io, "abcdef12-0000");
+  const path: string = summaryPath("/home/u", "/repo", "abcdef12-0000");
+  io.files.set(path, `<!-- hypermemory: entregue -->\n${io.files.get(path)}`);
   expect(await loadPrevious(io, "99999999-0000")).toBeUndefined();
+});
+
+// Achados do Codex no PR 5 (2026-11-20).
+const DELIVERED_MARK = "<!-- hypermemory: entregue -->";
+
+test("handoff pego por sessão que fechou antes do primeiro prompt volta para a sessão seguinte", async () => {
+  const io = new FakeSessionIo({ [`${DIR}/handoff-2026-11-19-090000-11111111.md`]: open("11111111", "notas.txt") });
+  await prepareSummary(io, "abandona-0000");
+  await prepareSummary(io, "seguinte-0000");
+  expect(io.files.get(summaryPath("/home/u", "/repo", "seguinte-0000"))).toBeDefined();
+});
+
+test("depois de entregue, o handoff pego não volta para outra sessão", async () => {
+  const io = new FakeSessionIo({ [`${DIR}/handoff-2026-11-19-090000-11111111.md`]: open("11111111", "notas.txt") });
+  await prepareSummary(io, "entregue-0000");
+  const path: string = summaryPath("/home/u", "/repo", "entregue-0000");
+  io.files.set(path, `${DELIVERED_MARK}\n${io.files.get(path)}`);
+  await prepareSummary(io, "seguinte-0000");
+  expect(io.files.get(summaryPath("/home/u", "/repo", "seguinte-0000"))).toBeUndefined();
+});
+
+test("checkpoint gravado enquanto o modelo resume não é sobrescrito pelo resumo velho", async () => {
+  const file: string = `${DIR}/handoff-2026-11-19-090000-11111111.md`;
+  const newer: string = open("11111111", "trabalho mais novo");
+  const io = new FakeSessionIo({ [file]: open("11111111", "trabalho velho") });
+  io.summarize = async (): Promise<string> => {
+    io.files.set(file, newer);
+    return "resumo do velho";
+  };
+  await prepareSummary(io, "outra-0000");
+  expect(io.files.get(file)).toBe(newer);
 });

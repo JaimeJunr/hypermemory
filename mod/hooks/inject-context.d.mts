@@ -9,3 +9,4 @@ export interface HookInput {
 export function summaryPath(home: string, cwd: string, sessionId: string): string;
 export function contextFor(input: HookInput, home: string): string | undefined;
 export function answer(raw: string, home: string): string;
+export const DELIVERED: string;

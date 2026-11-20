@@ -21,6 +21,7 @@ import {
   shortId,
   summaryPrompt,
   type TranscriptMessage,
+  undeliveredSessions,
 } from "./handoff-rules";
 
 export interface SessionIo {
@@ -59,8 +60,7 @@ export async function writeCheckpoint(
   await io.writeFile(`${dir}/${name}.md`, renderHandoff({ name, description, body }));
 }
 
-async function readEntries(io: SessionIo, dir: string): Promise<HandoffFile[]> {
-  const names: string[] = newestHandoffNames(await io.listFiles(dir));
+async function readEntries(io: SessionIo, dir: string, names: readonly string[]): Promise<HandoffFile[]> {
   const read = async (file: string): Promise<HandoffFile | undefined> =>
     io.readFile(`${dir}/${file}`).then(
       (content: string): HandoffFile => ({ file, content }),
@@ -83,6 +83,9 @@ async function claim(io: SessionIo, dir: string, entry: HandoffFile, sessionId: 
   const consolidated: string =
     rewritten === undefined ? entry.content : setField(replaceBody(entry.content, body), "consolidated", "true");
   const claimedBy: string = `${await io.today()} ${sessionId}`;
+  // A sessão dona pode ter gravado checkpoint enquanto o modelo resumia: aí o arquivo fica como ela deixou.
+  const current: string | undefined = await io.readFile(`${dir}/${entry.file}`).catch(() => undefined);
+  if (current !== entry.content) return { file: entry.file, body };
   await io.writeFile(`${dir}/${entry.file}`, claimedContent(consolidated, claimedBy)).catch(() => undefined);
   return { file: entry.file, body };
 }
@@ -91,7 +94,14 @@ async function claim(io: SessionIo, dir: string, entry: HandoffFile, sessionId: 
 // sessão já pegou (mesmo texto, sem nova chamada ao modelo).
 export async function loadPrevious(io: SessionIo, sessionId: string): Promise<string | undefined> {
   const dir: string = await sessionDir(io);
-  const { fresh, carried } = selectHandoffs(await readEntries(io, dir), sessionId);
+  const files: string[] = await io.listFiles(dir);
+  const summaries: HandoffFile[] = await readEntries(
+    io,
+    dir,
+    files.filter((file: string) => file.startsWith(".resumo-")),
+  );
+  const handoffs: HandoffFile[] = await readEntries(io, dir, newestHandoffNames(files));
+  const { fresh, carried } = selectHandoffs(handoffs, sessionId, undeliveredSessions(summaries));
   const kept: InjectedSummary[] = carried.map((entry: HandoffFile): InjectedSummary => {
     return { file: entry.file, body: parseHandoff(entry.content).body };
   });
