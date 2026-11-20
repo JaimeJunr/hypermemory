@@ -9,6 +9,7 @@ import {
   redirectTargets,
   scopeFromIndex,
 } from "./scope-rules";
+import { registerSessionHooks } from "./session-hooks";
 
 const PERSONAL_DIR: string = "~/.claude/hypermemory/";
 
@@ -78,4 +79,6 @@ export const register: Register = (on) => {
     const blocked: string | undefined = await bashTarget(read, expandVariables(e.command), await $.session.cwd());
     return blocked === undefined ? next(e) : { deny: denial($.plugin.name, blocked) };
   }).catch((_$, e, next) => next(e)); // falha do guarda não trava o comando; o validador ainda pega
+
+  registerSessionHooks(on);
 };
