@@ -1,6 +1,6 @@
 # Bloco para o CLAUDE.md
 
-Cole o bloco abaixo no `CLAUDE.md` do projeto. Ele não substitui as instruções de memória que o Claude Code já traz: só acrescenta o que o Hypermemory pede além delas.
+Com o mod `hypermemory-escopo` instalado não precisa colar nada: ele entrega estas regras (sem as de handoff, que passaram a ser automáticas) e o resumo da sessão anterior sozinho. Sem o mod, cole o bloco abaixo no `CLAUDE.md` do projeto. Ele não substitui as instruções de memória que o Claude Code já traz: só acrescenta o que o Hypermemory pede além delas.
 
 ```markdown
 ## Memória (Hypermemory)
