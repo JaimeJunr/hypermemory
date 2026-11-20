@@ -57,7 +57,7 @@ test("check accepts the current version with LF or CRLF", (): void => {
   for (const ending of ["\n", "\r\n"]) {
     expect(checkFormat({ "MEMORY.md": `<!-- hypermemory-format: 1 -->${ending}` })).toEqual({
       exitCode: 0,
-      output: ["ok: 0 memory files, MEMORY.md 1 lines"],
+      output: ["ok: 0 memory files, MEMORY.md 1 lines, scope project"],
     });
   }
 });

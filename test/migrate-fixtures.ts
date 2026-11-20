@@ -59,6 +59,7 @@ export class FakeMigrationSource extends FakeWikiReader implements MigrationSour
 }
 
 export class FakeMigrationDestination implements MigrationDestination {
+  directory: string = "";
   readonly writes: FileChange[][] = [];
   readonly reader: FakeMemoryReader;
   readonly previousLog: FakePreviousLogReader;
@@ -95,8 +96,9 @@ export class FakeMigrationIO implements MigrationIO {
     readonly memoryDir?: string,
   ) {}
 
-  destination(directory: string, source: string): MigrationDestination {
+  destination(directory: string, source: string): FakeMigrationDestination {
     this.opened.push([directory, source]);
+    this.target.directory = directory;
     return this.target;
   }
 }

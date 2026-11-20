@@ -23,7 +23,7 @@ test("CLI opens a real memory directory from disk", (): void => {
     writeFileSync(join(directory, "fact.md"), memory("fact"));
     expect(runCli([directory], openDirectory)).toEqual({
       exitCode: 0,
-      output: ["ok: 1 memory files, MEMORY.md 2 lines"],
+      output: ["ok: 1 memory files, MEMORY.md 2 lines, scope project"],
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -33,7 +33,7 @@ test("CLI opens a real memory directory from disk", (): void => {
 test("CLI returns exit zero and a count summary for a valid directory", (): void => {
   expect(runCli(["fixture"], openFixture)).toEqual({
     exitCode: 0,
-    output: ["ok: 1 memory files, MEMORY.md 2 lines"],
+    output: ["ok: 1 memory files, MEMORY.md 2 lines, scope project"],
   });
 });
 

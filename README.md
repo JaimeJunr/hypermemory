@@ -17,9 +17,11 @@ memory/            o esqueleto para copiar (plano, como o nativo)
 
 ## Como usar num projeto
 
-1. Copie `memory/` para a raiz do projeto.
+1. Crie `memory/` na raiz do projeto com `hypermemory init memory --scope shared --apply` se ela for versionada e lida por outras pessoas. Use `--scope project` para uma memória local.
 2. Ligue a pasta nativa a ela: `ln -s <projeto>/memory ~/.claude/projects/<projeto>/memory` (a pasta nativa precisa não existir ou estar vazia).
 3. Cole o bloco de `BLOCO-AGENTE.md` no `CLAUDE.md` do projeto.
+
+Use `hypermemory init ~/.claude/hypermemory --scope personal --apply` para criar sua memória pessoal. Sem `--apply`, o comando mostra a alteração prevista. Em um índice do formato atual sem marcador de escopo, `--apply` insere o marcador na linha 2.
 
 ## Validar
 
@@ -52,9 +54,11 @@ bun run migrate ai-memory --project <nome> <destino>
 
 Sem `--apply`, o comando só mostra o plano e não grava nada. Use `--from <pasta>` para indicar outra origem.
 
+Use `--scope personal|project|shared` para escolher o escopo de um novo destino (padrão `project`). Na migração do ai-memory, passe `--personal-dest ~/.claude/hypermemory` para enviar perfis à memória pessoal. Em destino `shared`, perfis são pulados se essa opção for omitida.
+
 ## Versões
 
-As mudanças de cada versão estão no [CHANGELOG.md](CHANGELOG.md). O wrapper do repositório, `bin/hypermemory`, aceita `check`, `migrate` e `upgrade`. Quando `hypermemory` estiver no PATH, use `hypermemory upgrade <pasta>` para ver o plano e `hypermemory upgrade <pasta> --apply` para criar o backup e atualizar. Também é possível usar `bun run upgrade <pasta> [--apply]`.
+As mudanças de cada versão estão no [CHANGELOG.md](CHANGELOG.md). O wrapper do repositório, `bin/hypermemory`, aceita `check`, `migrate`, `upgrade` e `init`. Quando `hypermemory` estiver no PATH, use `hypermemory upgrade <pasta>` para ver o plano e `hypermemory upgrade <pasta> --apply` para criar o backup e atualizar. Também é possível usar `bun run upgrade <pasta> [--apply]`.
 
 ## O que ficou de fora
 

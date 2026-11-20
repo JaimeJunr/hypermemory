@@ -5,7 +5,8 @@ case "${1-}" in
   check) entry=cli ;;
   migrate) entry=migrate ;;
   upgrade) entry=upgrade ;;
-  *) echo 'usage: hypermemory <check | migrate | upgrade> ...' >&2; exit 1 ;;
+  init) entry=init ;;
+  *) echo 'usage: hypermemory <check | migrate | upgrade | init> ...' >&2; exit 1 ;;
 esac
 shift
 

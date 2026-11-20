@@ -9,17 +9,17 @@ import {
   openSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   type Stats,
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fail, hasCode, stageAndWrite, verifyChange, withWriteLock } from "../file-writes";
 import type { MigrationDestination, MigrationIO, MigrationSource } from "../migrate";
+import { canonicalPath, destinationPath } from "../paths";
 import { DirectoryMemoryReader, GitPreviousLogReader, ProcessGitRunner } from "../readers";
-import { assertCurrentDestination } from "./destination-format";
-import type { FileChange, Skeleton } from "./plan";
+import { readSkeleton, type Skeleton } from "../skeleton";
+import { readCurrentIndex } from "./destination-format";
+import type { FileChange } from "./plan";
 import type { WikiEntry } from "./wiki";
 
 const LOG_FILE: string = "LOG.md";
@@ -59,30 +59,6 @@ class OptionalDirectoryReader extends DirectoryMemoryReader {
   }
 }
 
-function canonicalPath(path: string): string {
-  const absolute: string = resolve(path);
-  try {
-    return realpathSync(absolute);
-  } catch (error: unknown) {
-    if (!hasCode(error, "ENOENT")) throw error;
-    const parent: string = dirname(absolute);
-    if (parent === absolute) throw error;
-    return join(canonicalPath(parent), basename(absolute));
-  }
-}
-
-function destinationPath(path: string): string {
-  try {
-    const canonical: string = canonicalPath(path);
-    const stat: Stats | undefined = lstatSync(canonical, { throwIfNoEntry: false });
-    if (stat !== undefined && !stat.isDirectory()) fail(path, "destination", path, "a destination directory");
-    return canonical;
-  } catch (error: unknown) {
-    if (hasCode(error, "ENOTDIR")) fail(path, "destination", path, "a destination directory");
-    throw error;
-  }
-}
-
 function ensureOutsideSource(directory: string, source: string): void {
   const path: string = relative(canonicalPath(source), canonicalPath(directory));
   if (path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))) {
@@ -114,7 +90,7 @@ function writeChange(directory: string, change: FileChange): void {
 class DirectoryDestination implements MigrationDestination {
   readonly reader: DirectoryMemoryReader;
   readonly previousLog: GitPreviousLogReader;
-  private readonly directory: string;
+  readonly directory: string;
 
   constructor(
     directory: string,
@@ -130,11 +106,14 @@ class DirectoryDestination implements MigrationDestination {
     return lstatSync(this.directory, { throwIfNoEntry: false }) !== undefined;
   }
 
-  apply(changes: readonly FileChange[]): void {
+  apply(changes: readonly FileChange[], expectedIndex: string | undefined): void {
     ensureOutsideSource(this.directory, this.source);
     mkdirSync(dirname(this.directory), { recursive: true });
     withWriteLock(this.directory, (): void => {
-      if (this.exists()) assertCurrentDestination(this.reader, this.directory);
+      const index: string | undefined = this.exists() ? readCurrentIndex(this.reader, this.directory) : undefined;
+      if (index !== expectedIndex) {
+        fail(this.directory, "index state", "changed MEMORY.md", "the same index contents as during planning");
+      }
       for (const change of changes) verifyChange(join(this.directory, change.file), change);
       mkdirSync(this.directory, { recursive: true });
       for (const change of changes) writeChange(this.directory, change);
@@ -148,8 +127,7 @@ export class DiskMigrationIO implements MigrationIO {
   readonly source: MigrationSource = new DirectorySource();
 
   get skeleton(): Skeleton {
-    const directory: string = fileURLToPath(new URL("../../memory/", import.meta.url));
-    return { memory: this.source.read(join(directory, "MEMORY.md")), log: this.source.read(join(directory, "LOG.md")) };
+    return readSkeleton();
   }
 
   destination(directory: string, source: string): MigrationDestination {
