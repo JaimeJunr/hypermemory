@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { HAIKU_SUMMARY, parseHandoff, type TranscriptMessage } from "../mod/hooks/handoff-rules";
-import { loadPrevious, type SessionIo, writeCheckpoint } from "../mod/hooks/session-flow";
+import { summaryPath } from "../mod/hooks/inject-context.mjs";
+import { loadPrevious, prepareSummary, type SessionIo, writeCheckpoint } from "../mod/hooks/session-flow";
 
 const DIR = "/home/u/.claude/hypermemory/sessoes/-repo";
 
@@ -136,4 +137,20 @@ test("o nome do handoff leva data e hora do primeiro turno", async () => {
   const io = new FakeSessionIo();
   await writeCheckpoint(io, "abcdef12-0000", msgs);
   expect([...io.files.keys()]).toEqual([`${DIR}/handoff-2026-11-20-143000-abcdef12.md`]);
+});
+
+test("prepareSummary grava o resumo onde o hook de comando lê, e nada sem sessão anterior", async () => {
+  const io = new FakeSessionIo({ [`${DIR}/handoff-2026-11-19-090000-11111111.md`]: open("11111111") });
+  await prepareSummary(io, "abcdef12-0000");
+  const path: string = summaryPath("/home/u", "/repo", "abcdef12-0000");
+  expect(io.files.get(path)).toContain("resumo curto");
+  const empty = new FakeSessionIo();
+  await prepareSummary(empty, "abcdef12-0000");
+  expect(empty.files.size).toBe(0);
+});
+
+test("o arquivo de resumo não é lido como handoff por outra sessão", async () => {
+  const io = new FakeSessionIo({ [`${DIR}/handoff-2026-11-19-090000-11111111.md`]: open("11111111") });
+  await prepareSummary(io, "abcdef12-0000");
+  expect(await loadPrevious(io, "99999999-0000")).toBeUndefined();
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { AGENT_RULES_TEXT } from "../mod/hooks/agent-rules";
+import { readFileSync } from "node:fs";
 import {
   BODY_LIMIT,
   buildBody,
@@ -116,6 +116,7 @@ test("formatInjection devolve undefined sem resumos e traz o título com eles", 
 });
 
 test("as regras entregues pelo mod não mandam ler nem escrever handoff", () => {
+  const AGENT_RULES_TEXT: string = readFileSync("mod/hooks/agent-rules.md", "utf8");
   expect(AGENT_RULES_TEXT).toContain("chega sozinho");
   expect(AGENT_RULES_TEXT).not.toContain("No começo");
   expect(AGENT_RULES_TEXT).not.toContain("Fim de sessão");

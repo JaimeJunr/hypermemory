@@ -100,3 +100,16 @@ export async function loadPrevious(io: SessionIo, sessionId: string): Promise<st
   );
   return formatInjection([...kept, ...claimed]);
 }
+
+// O hook de comando (inject-context.mjs, summaryPath) lê este mesmo caminho no primeiro prompt: o ponto na frente
+// tira o arquivo da lista de handoffs.
+export function summaryFile(dir: string, sessionId: string): string {
+  return `${dir}/.resumo-${sessionId}.md`;
+}
+
+// Roda no session.start: pega e reescreve os handoffs abertos e deixa o texto pronto para o hook de comando entregar.
+export async function prepareSummary(io: SessionIo, sessionId: string): Promise<void> {
+  const text: string | undefined = await loadPrevious(io, sessionId);
+  if (text === undefined) return;
+  await io.writeFile(summaryFile(await sessionDir(io), sessionId), text);
+}

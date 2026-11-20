@@ -3,7 +3,6 @@ import { expect, test } from "claude-code/testing";
 
 const SESSION = "abcdef12-3456";
 const DIR = "/home/u/.claude/hypermemory/sessoes/-repo";
-const COMPOSE = { model: "m", promptModel: "m", surfaces: [], tools: [], outputStyle: null, traits: [] } as const;
 const TURN = { answer: "ok", durationMs: 1, isAborted: false, turnId: "t1", reason: "answer" } as const;
 const MESSAGES = [
   { role: "user" as const, text: "conserta o login", toolUses: [] },
@@ -59,37 +58,34 @@ const answered: ModelCompleteResult = {
   usage: { input_tokens: 10, output_tokens: 5 },
 } as unknown as ModelCompleteResult;
 
-test("o prompt do sistema ganha as regras e o resumo da sessão anterior, sem CLAUDE.md", async ($, on) => {
+const START = { cwd: "/repo", surface: null, isInteractive: false } as const;
+const SUMMARY = `${DIR}/.resumo-${SESSION}.md`;
+
+test("o início da sessão pega o handoff aberto, reescreve com o Haiku e deixa o resumo para o primeiro prompt", async ($, on) => {
   const w = world(on, { [`${DIR}/handoff-2026-11-19-11111111.md`]: OPEN }, answered);
-  on("prompt.compose", () => ({ sections: [] }));
-  const { sections } = await $.prompt.compose(COMPOSE);
-  expect(sections.map((s) => s.id)).toEqual(["hypermemory-escopo:rules", "hypermemory-escopo:previous-session"]);
-  expect(sections.every((s) => s.scope === "session")).toBe(true);
-  expect(sections[1]?.text).toContain("resumo do Haiku");
+  on("session.start", () => ({ cwd: "/repo" }));
+  await $.session.start(START);
+  expect(w.writes.get(SUMMARY)).toContain("resumo do Haiku");
   expect(w.writes.get(`${DIR}/handoff-2026-11-19-11111111.md`)).toContain("status: claimed");
   expect(w.prompts).toHaveLength(1);
 });
 
-test("sem handoff aberto só as regras entram", async ($, on) => {
-  world(on, {}, answered);
-  on("prompt.compose", () => ({ sections: [] }));
-  expect((await $.prompt.compose(COMPOSE)).sections.map((s) => s.id)).toEqual(["hypermemory-escopo:rules"]);
+test("sem handoff aberto o início não grava resumo nem chama o modelo", async ($, on) => {
+  const w = world(on, {}, answered);
+  on("session.start", () => ({ cwd: "/repo" }));
+  await $.session.start(START);
+  expect(w.writes.size).toBe(0);
+  expect(w.prompts).toHaveLength(0);
 });
 
-test("com o modelo fora do ar o texto por regra é injetado", async ($, on) => {
-  world(on, { [`${DIR}/handoff-2026-11-19-11111111.md`]: OPEN }, {
+test("com o modelo fora do ar o resumo sai com o texto por regra", async ($, on) => {
+  const w = world(on, { [`${DIR}/handoff-2026-11-19-11111111.md`]: OPEN }, {
     isAnswered: false,
     reason: "aborted",
   } as ModelCompleteResult);
-  on("prompt.compose", () => ({ sections: [] }));
-  const { sections } = await $.prompt.compose(COMPOSE);
-  expect(sections[1]?.text).toContain("corpo por regra");
-});
-
-test("prompt bare não ganha seção nenhuma", async ($, on) => {
-  world(on, {}, answered);
-  on("prompt.compose", () => ({ sections: [] }));
-  expect((await $.prompt.compose({ ...COMPOSE, traits: ["bare"] })).sections).toEqual([]);
+  on("session.start", () => ({ cwd: "/repo" }));
+  await $.session.start(START);
+  expect(w.writes.get(SUMMARY)).toContain("corpo por regra");
 });
 
 test("o fim de cada turno do agente principal reescreve o handoff da sessão", async ($, on) => {
