@@ -68,3 +68,18 @@ test("personal and project allow personal memories and shared allows team feedba
   }
   expect(withFiles("shared", { "team.md": FILES["team.md"] ?? "" }).exitCode).toBe(0);
 });
+
+test("shared checks the scope of memories in subfolders such as archive/", (): void => {
+  const nested: Record<string, string> = {
+    "archive/habit.md": memory("habit", "type: user\nkind: profile"),
+    "archive/old/team.md": memory("team", "type: feedback\npersonal: false"),
+  };
+  const result: ReturnType<typeof runCli> = validate(markedIndex("<!-- hypermemory-scope: shared -->\n"), nested);
+  expect(result).toEqual({
+    exitCode: 1,
+    output: [
+      'archive/habit.md: scope: received metadata.type "user" in a shared memory, expected it in the personal memory (~/.claude/hypermemory)',
+    ],
+  });
+  expect(validate(markedIndex("<!-- hypermemory-scope: project -->\n"), nested).exitCode).toBe(0);
+});

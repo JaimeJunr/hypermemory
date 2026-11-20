@@ -184,3 +184,23 @@ test("init applies one index write and surfaces a blocked write from its destina
     expect(io.destination.writes).toEqual(error === undefined ? changes : []);
   }
 });
+
+test("init refuses to insert the scope marker when the index would exceed its line or byte budget", (): void => {
+  const fullLines: string = markedIndex(
+    Array.from({ length: 149 }, (_, i: number): string => `- [F${i}](f${i}.md)`).join("\n"),
+  );
+  const fullBytes: string = markedIndex(`- [Big](big.md) — ${"x".repeat(24_990)}`);
+  for (const [original, field] of [
+    [fullLines, "line count"],
+    [fullBytes, "byte count"],
+  ] as const) {
+    const directory: string = fixture();
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "MEMORY.md"), original);
+    const result: Invocation = init(directory, "--scope", "shared", "--apply");
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain(`MEMORY.md: ${field}: received`);
+    expect(result.output).toContain("index-<dominio>.md");
+    expect(readFileSync(join(directory, "MEMORY.md"), "utf8")).toBe(original);
+  }
+});

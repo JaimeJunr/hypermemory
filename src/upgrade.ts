@@ -1,6 +1,7 @@
 import { formatIssue, type MemorySources, runCli } from "./cli";
 import type { FileChange } from "./file-changes";
 import { CURRENT_FORMAT, MEMORY_INDEX, newerFormatIssue, readFormat } from "./format";
+import { OVERFLOW_HINT, overflowIssues } from "./indexes";
 import { type Issue, receivedIssue } from "./issue";
 import { DiskUpgradeIO } from "./upgrade/disk";
 import { describeUpgrade, planUpgrade, type UpgradePlan } from "./upgrade/plan";
@@ -74,6 +75,10 @@ function upgrade(directory: string, apply: boolean, io: UpgradeIO, output: strin
   const input: ReadonlyMap<string, string> = snapshot(target.reader, names);
   const plan: UpgradePlan = planUpgrade(input);
   if (plan.steps.length === 0) return { exitCode: 0, output: [`ok: already at format ${CURRENT_FORMAT}`] };
+  const overflow: string[] = overflowIssues(plan.files.get(MEMORY_INDEX) ?? "").map(
+    (issue: Issue): string => `${formatIssue(issue)}; ${OVERFLOW_HINT} and run the upgrade again`,
+  );
+  if (overflow.length > 0) return { exitCode: 1, output: overflow };
   output.push(...describeUpgrade(plan, apply));
   if (!apply) return { exitCode: 0, output };
   return applyUpgrade(target, input, plan, io, output);

@@ -17,6 +17,7 @@ import {
   scopeMarker,
   scopeMarkerIssue,
 } from "./format";
+import { OVERFLOW_HINT, overflowIssues } from "./indexes";
 import { type Issue, receivedIssue } from "./issue";
 import { destinationPath, expandHome } from "./paths";
 import { readSkeleton, type Skeleton, scopedSkeleton } from "./skeleton";
@@ -101,7 +102,12 @@ function initialize(options: InitOptions, io: InitIO): InitResult {
     return { exitCode: 0, output: [`ok: format ${format ?? 0}, scope ${existingScope}`] };
   const issue: Issue | undefined = formatVersionIssue(format, directory);
   if (issue !== undefined) return { exitCode: 1, output: [formatIssue(issue)] };
-  const change: FileChange = { file: MEMORY_INDEX, before: index, content: insertScopeMarker(index, scope) };
+  const content: string = insertScopeMarker(index, scope);
+  const overflow: string[] = overflowIssues(content).map(
+    (issue: Issue): string => `${formatIssue(issue)}; ${OVERFLOW_HINT}`,
+  );
+  if (overflow.length > 0) return { exitCode: 1, output: overflow };
+  const change: FileChange = { file: MEMORY_INDEX, before: index, content };
   return finishInit(options, target, [change], `insert line 2 in ${join(directory, MEMORY_INDEX)}`);
 }
 

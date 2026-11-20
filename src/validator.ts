@@ -9,6 +9,8 @@ export type { Issue } from "./issue";
 
 export interface MemoryReader {
   list(): readonly string[];
+  // .md em subpastas (ex.: archive/), relativos à pasta; só a regra de escopo olha para eles.
+  nested(): readonly string[];
   read(file: string): string;
 }
 
@@ -62,6 +64,13 @@ function validateSharedScope(memories: readonly MemoryFile[], issues: Issue[]): 
   }
 }
 
+function nestedMemories(reader: MemoryReader): MemoryFile[] {
+  const ignored: Issue[] = [];
+  return [...reader.nested()]
+    .sort()
+    .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), ignored));
+}
+
 export function validateMemory(
   reader: MemoryReader,
   previousLog: PreviousLogReader,
@@ -76,7 +85,7 @@ export function validateMemory(
   const memories: MemoryFile[] = files
     .filter(isMemoryFile)
     .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues));
-  if (scope === "shared") validateSharedScope(memories, issues);
+  if (scope === "shared") validateSharedScope([...memories, ...nestedMemories(reader)], issues);
   validateIndexLinks(indexes, new Set(files), memories, issues);
   validateSupersedes(memories, issues);
   validateHandoffs(memories, issues);

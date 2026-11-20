@@ -24,7 +24,7 @@ A segunda linha de `MEMORY.md`, logo após o marcador do formato, pode declarar 
 - **Projeto (`project`)** é a memória nativa de um repositório nesta máquina.
 - **Compartilhado (`shared`)** é a memória versionada num repositório que outras pessoas leem. Guarde nela só fatos do projeto.
 
-Gosto, hábito e regra pessoal vão sempre para a memória pessoal. Isso inclui `metadata.type: user`, `metadata.kind: profile` e feedback pessoal (marcado com `metadata.personal: true`). A validação rejeita esses arquivos em pastas com escopo `shared`.
+Gosto, hábito e regra pessoal vão sempre para a memória pessoal. Isso inclui `metadata.type: user`, `metadata.kind: profile` e feedback pessoal (marcado com `metadata.personal: true`). A validação rejeita esses arquivos em pastas com escopo `shared`. A regra vale também para `.md` em subpastas, como `archive/`, que herdam o escopo do `MEMORY.md` da pasta-mãe.
 
 ## Versões e migração do formato
 

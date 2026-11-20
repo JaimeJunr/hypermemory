@@ -6,7 +6,11 @@ export class FakeMemoryReader implements MemoryReader {
   constructor(private readonly files: Readonly<Record<string, string>>) {}
 
   list(): readonly string[] {
-    return Object.keys(this.files);
+    return Object.keys(this.files).filter((file: string): boolean => !file.includes("/"));
+  }
+
+  nested(): readonly string[] {
+    return Object.keys(this.files).filter((file: string): boolean => file.includes("/"));
   }
 
   read(file: string): string {
