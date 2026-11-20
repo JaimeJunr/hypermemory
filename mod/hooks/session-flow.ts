@@ -33,13 +33,15 @@ export interface SessionIo {
   // Texto reescrito pelo modelo, ou undefined se não respondeu (erro, timeout, resposta vazia).
   summarize(system: string, prompt: string): Promise<string | undefined>;
   today(): Promise<string>;
+  // AAAA-MM-DD-HHMMSS local: entra no nome do handoff para ordenar as sessões do mesmo dia.
+  stamp(): Promise<string>;
 }
 
 async function sessionDir(io: SessionIo): Promise<string> {
   return `${await io.home()}/.claude/hypermemory/sessoes/${projectSlug(await io.cwd())}`;
 }
 
-// Reescreve no lugar o handoff desta sessão (mesmo id curto): a data do nome é a do primeiro turno.
+// Reescreve no lugar o handoff desta sessão (mesmo id curto): data e hora do nome são as do primeiro turno.
 export async function writeCheckpoint(
   io: SessionIo,
   sessionId: string,
@@ -51,7 +53,7 @@ export async function writeCheckpoint(
   const existing: string | undefined = (await io.listFiles(dir)).find((file: string): boolean =>
     file.endsWith(`-${shortId(sessionId)}.md`),
   );
-  const name: string = existing?.replace(/\.md$/, "") ?? handoffName(await io.today(), sessionId);
+  const name: string = existing?.replace(/\.md$/, "") ?? handoffName(await io.stamp(), sessionId);
   const slug: string = projectSlug(await io.cwd());
   const description: string = describeHandoff(messages, slug);
   await io.writeFile(`${dir}/${name}.md`, renderHandoff({ name, description, body }));

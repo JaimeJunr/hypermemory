@@ -16,6 +16,7 @@ class FakeSessionIo implements SessionIo {
   home = async (): Promise<string> => "/home/u";
   cwd = async (): Promise<string> => "/repo";
   today = async (): Promise<string> => "2026-11-20";
+  stamp = async (): Promise<string> => "2026-11-20-143000";
   readFile = async (path: string): Promise<string> => {
     const text = this.files.get(path);
     if (text === undefined) throw new Error(`ENOENT ${path}`);
@@ -43,11 +44,11 @@ const open = (id: string, body: string = "corpo"): string =>
 test("o checkpoint cria o handoff na pasta pessoal e reescreve no mesmo arquivo no turno seguinte", async () => {
   const io = new FakeSessionIo();
   await writeCheckpoint(io, "abcdef12-0000", msgs);
-  expect([...io.files.keys()]).toEqual([`${DIR}/handoff-2026-11-20-abcdef12.md`]);
-  io.today = async () => "2026-11-21";
+  expect([...io.files.keys()]).toEqual([`${DIR}/handoff-2026-11-20-143000-abcdef12.md`]);
+  io.stamp = async () => "2026-11-21-090000";
   await writeCheckpoint(io, "abcdef12-0000", [...msgs, { role: "user", text: "e o logout", toolUses: [] }]);
   expect(io.files.size).toBe(1);
-  expect(io.files.get(`${DIR}/handoff-2026-11-20-abcdef12.md`)).toContain("e o logout");
+  expect(io.files.get(`${DIR}/handoff-2026-11-20-143000-abcdef12.md`)).toContain("e o logout");
 });
 
 test("o checkpoint não grava nada com transcript sem pedido do usuário", async () => {
@@ -111,4 +112,28 @@ test("o handoff da própria sessão nunca é injetado nela", async () => {
 
 test("a chamada ao modelo usa a constante única, com esforço baixo e teto de tokens", () => {
   expect(HAIKU_SUMMARY).toMatchObject({ model: "claude-haiku-5-5", effort: "low", maxTokens: 600, timeoutMs: 8000 });
+});
+
+// Várias sessões no mesmo dia: o id é aleatório, então só a hora no nome garante que a mais nova seja escolhida.
+test("a abertura escolhe as sessões mais novas do dia pela hora, não pelo id", async () => {
+  const io = new FakeSessionIo({}, null);
+  const sessions: [string, string][] = [
+    ["dddddddd-0000", "2026-11-20-090000"],
+    ["cccccccc-0000", "2026-11-20-100000"],
+    ["bbbbbbbb-0000", "2026-11-20-110000"],
+    ["aaaaaaaa-0000", "2026-11-20-120000"],
+  ];
+  for (const [id, stamp] of sessions) {
+    io.stamp = async () => stamp;
+    await writeCheckpoint(io, id, [{ role: "user", text: `pedido da ${id.slice(0, 8)}`, toolUses: [] }]);
+  }
+  const injected: string = (await loadPrevious(io, "eeeeeeee-0000")) ?? "";
+  expect(injected).toContain("pedido da aaaaaaaa");
+  expect(injected).not.toContain("pedido da dddddddd");
+});
+
+test("o nome do handoff leva data e hora do primeiro turno", async () => {
+  const io = new FakeSessionIo();
+  await writeCheckpoint(io, "abcdef12-0000", msgs);
+  expect([...io.files.keys()]).toEqual([`${DIR}/handoff-2026-11-20-143000-abcdef12.md`]);
 });

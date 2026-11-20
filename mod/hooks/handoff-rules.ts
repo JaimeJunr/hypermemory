@@ -51,8 +51,8 @@ export function shortId(sessionId: string): string {
   return sessionId.slice(0, 8);
 }
 
-export function handoffName(date: string, sessionId: string): string {
-  return `handoff-${date}-${shortId(sessionId)}`;
+export function handoffName(stamp: string, sessionId: string): string {
+  return `handoff-${stamp}-${shortId(sessionId)}`;
 }
 
 function cut(text: string, limit: number): string {

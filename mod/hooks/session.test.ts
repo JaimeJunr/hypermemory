@@ -97,8 +97,8 @@ test("o fim de cada turno do agente principal reescreve o handoff da sessão", a
   on("turn.complete", () => ({ text: "ok" }));
   await $.turn.complete(TURN);
   await $.turn.complete(TURN);
-  expect([...w.writes.keys()]).toEqual([`${DIR}/handoff-2026-11-20-abcdef12.md`]);
-  expect(w.writes.get(`${DIR}/handoff-2026-11-20-abcdef12.md`)).toContain("/repo/login.ts");
+  expect([...w.writes.keys()]).toEqual([`${DIR}/handoff-2026-11-20-120000-abcdef12.md`]);
+  expect(w.writes.get(`${DIR}/handoff-2026-11-20-120000-abcdef12.md`)).toContain("/repo/login.ts");
 });
 
 test("turno de subagente não grava handoff", async ($, on) => {

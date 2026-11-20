@@ -28,6 +28,10 @@ function ioOf($: Api): SessionIo {
       return result.isAnswered ? result.text : undefined;
     },
     today: async (): Promise<string> => new Date(await $.clock.now()).toLocaleDateString("sv-SE"),
+    stamp: async (): Promise<string> => {
+      const now: Date = new Date(await $.clock.now());
+      return `${now.toLocaleDateString("sv-SE")}-${now.toLocaleTimeString("sv-SE").replaceAll(":", "")}`;
+    },
   };
 }
 
