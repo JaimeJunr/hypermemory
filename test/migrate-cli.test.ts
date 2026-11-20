@@ -104,8 +104,8 @@ test("OptMem dry run prints creations, skipped records, warnings, and planned LO
   const result: ReturnType<typeof runMigration> = runMigration(OPT_ARGS, io);
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain("Dry run");
-  expect(result.output).toContain("Create file: MEMORY.md");
-  expect(result.output).toContain("Create file: LOG.md");
+  expect(result.output).toContain("Create file: /dest/MEMORY.md");
+  expect(result.output).toContain("Create file: /dest/LOG.md");
   expect(result.output).toContain("Append LOG.md: 2026-11-19 | event | First");
   expect(result.output).toContain("Append LOG.md: 2026-11-20 | event | Last");
   expect(result.output.join("\n")).toContain('record #2: received "broken"');
@@ -118,7 +118,7 @@ test("ai-memory dry run shows new pages and index lines with skips counted by re
   const io: FakeMigrationIO = withProject({ "notes/one.md": "# One", "sessions/x.md": "# Past", "index.md": "Root" });
   const result: ReturnType<typeof runMigration> = runMigration(PROJECT_ARGS, io);
   expect(result.exitCode).toBe(0);
-  expect(result.output).toContain("Create file: one.md");
+  expect(result.output).toContain("Create file: /dest/one.md");
   expect(result.output).toContain("Index MEMORY.md: - [one](one.md) — One");
   expect(result.output.join("\n")).toContain("root file: 2");
   expect(result.output.join("\n")).toContain("folder sessions: 1");
@@ -136,7 +136,7 @@ test("OptMem apply appends once, preserving existing LOG bytes and skipping dupl
     destination,
   );
   const args: string[] = [...OPT_ARGS, "--apply"];
-  expect(runMigration(args, io).output).toContain("ok: 0 memory files, MEMORY.md 1 lines");
+  expect(runMigration(args, io).output).toContain("ok: 0 memory files, MEMORY.md 1 lines, scope project");
   expect(destination.files["LOG.md"]).toBe(`${original}\n2026-11-20 | event | New\n`);
   expect(destination.files["MEMORY.md"]).toBe(markedIndex());
   const again: ReturnType<typeof runMigration> = runMigration(args, io);
@@ -154,7 +154,7 @@ test("ai-memory apply writes the skeleton, indexes active pages only, and skips 
   const args: string[] = [...PROJECT_ARGS, "--apply"];
   const first: ReturnType<typeof runMigration> = runMigration(args, io);
   expect(first.exitCode).toBe(0);
-  expect(first.output).toContain("ok: 2 memory files, MEMORY.md 3 lines");
+  expect(first.output).toContain("ok: 2 memory files, MEMORY.md 4 lines, scope project");
   expect(io.target.files["LOG.md"]).toStartWith("<!-- AAAA-MM-DD");
   expect(io.target.files["MEMORY.md"]).toContain("- [Current](current.md) — Current\n");
   expect(io.target.files["MEMORY.md"]).not.toContain("old.md");
@@ -255,7 +255,7 @@ test("applying twice indexes a truncated inline-code title exactly once and pass
   for (let run: number = 0; run < 2; run++) {
     const result: ReturnType<typeof runMigration> = runMigration(args, io);
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain("ok: 1 memory files, MEMORY.md 3 lines");
+    expect(result.output).toContain("ok: 1 memory files, MEMORY.md 4 lines, scope project");
     const lines: string[] = (io.target.files["MEMORY.md"] ?? "").split("\n");
     expect(lines.filter((line: string): boolean => line.includes(`](${file})`))).toHaveLength(1);
   }

@@ -1,4 +1,12 @@
-import { CURRENT_FORMAT, formatMarker, readFormat } from "../format";
+import {
+  CURRENT_FORMAT,
+  declaredScope,
+  formatMarker,
+  insertScopeMarker,
+  MEMORY_INDEX,
+  type MemoryScope,
+  readFormat,
+} from "../format";
 import { validateIndexBudget, visitIndexTargets } from "../indexes";
 import type { Issue } from "../issue";
 import { appendLines } from "../markdown";
@@ -16,8 +24,6 @@ export interface IndexEdit {
   readonly content: string;
   readonly lines: readonly string[];
 }
-
-const MAIN_INDEX: string = "MEMORY.md";
 
 const MARKDOWN_ESCAPE: RegExp = /[\\[\]<>&]/g;
 
@@ -116,10 +122,10 @@ function archiveName(indexes: ReadonlyMap<string, string>, current: string): str
 }
 
 function finishMain(indexes: ReadonlyMap<string, string>, mainLines: string[], edits: IndexEdit[]): void {
-  const previous: string = indexes.get(MAIN_INDEX) ?? "";
+  const previous: string = indexes.get(MEMORY_INDEX) ?? "";
   const content: string = appendLines(previous, mainLines);
   if (fits(content)) {
-    if (mainLines.length > 0) edits.push({ file: MAIN_INDEX, content, lines: mainLines });
+    if (mainLines.length > 0) edits.push({ file: MEMORY_INDEX, content, lines: mainLines });
     return;
   }
   // O índice anterior fica inteiro para preservar os links e suas definições.
@@ -127,7 +133,9 @@ function finishMain(indexes: ReadonlyMap<string, string>, mainLines: string[], e
   if (!indexes.has(archive)) edits.push({ file: archive, content: previous, lines: [] });
   mainLines.unshift(indexLine("Existing memories", archive, "Índice anterior"));
   const marker: string = readFormat(previous) === BigInt(CURRENT_FORMAT) ? formatMarker(CURRENT_FORMAT) : "";
-  edits.push({ file: MAIN_INDEX, content: appendLines(marker, mainLines), lines: mainLines });
+  const scope: MemoryScope | undefined = declaredScope(previous);
+  const header: string = scope === undefined ? marker : insertScopeMarker(marker, scope);
+  edits.push({ file: MEMORY_INDEX, content: appendLines(header, mainLines), lines: mainLines });
 }
 
 function groupedIndexes(indexes: ReadonlyMap<string, string>, domains: readonly DomainGroup[]): IndexEdit[] {
@@ -152,6 +160,6 @@ export function planIndexes(indexes: ReadonlyMap<string, string>, pages: readonl
   }
   const lines: string[] = pages.filter(({ name }): boolean => !linked.has(`${name}.md`)).map(pageLine);
   if (lines.length === 0) return [];
-  const content: string = appendLines(indexes.get(MAIN_INDEX) ?? "", lines);
-  return fits(content) ? [{ file: MAIN_INDEX, content, lines }] : groupedIndexes(indexes, domains);
+  const content: string = appendLines(indexes.get(MEMORY_INDEX) ?? "", lines);
+  return fits(content) ? [{ file: MEMORY_INDEX, content, lines }] : groupedIndexes(indexes, domains);
 }

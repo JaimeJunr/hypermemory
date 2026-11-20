@@ -1,9 +1,11 @@
+import { join } from "node:path";
 import { formatIssue } from "../cli";
 import { changedFiles, type FileChange } from "../file-changes";
 import { type MemoryFile, nonEmptyString, validateFrontmatter } from "../frontmatter";
 import { isDomainIndex } from "../indexes";
 import type { Issue } from "../issue";
 import { appendLines, markdownLines } from "../markdown";
+import type { Skeleton } from "../skeleton";
 import type { MemoryReader } from "../validator";
 import { type IndexEdit, type IndexPage, planIndexes } from "./index-plan";
 import type { OptMemRecords } from "./optmem";
@@ -11,11 +13,7 @@ import { type ConvertedPages, convertPages, type MigratedPage, type NamedPage, p
 import type { ProjectPages, Skipped } from "./wiki";
 
 export type { FileChange } from "../file-changes";
-
-export interface Skeleton {
-  readonly memory: string;
-  readonly log: string;
-}
+export type { Skeleton } from "../skeleton";
 
 export interface MigrationPlan {
   readonly files: readonly FileChange[];
@@ -146,10 +144,10 @@ function summarize(plan: MigrationPlan): string {
   );
 }
 
-export function describePlan(plan: MigrationPlan, apply: boolean): string[] {
-  const output: string[] = [apply ? "Apply" : "Dry run"];
+export function describePlan(plan: MigrationPlan, apply: boolean, directory: string): string[] {
+  const output: string[] = [apply ? "Apply" : "Dry run", `Destination: ${JSON.stringify(directory)}`];
   for (const { file, before } of plan.files)
-    output.push((before === undefined ? "Create file: " : "Update file: ") + file);
+    output.push((before === undefined ? "Create file: " : "Update file: ") + join(directory, file));
   for (const skip of plan.skips) output.push(`Skip: ${skip.target.replaceAll(/[\r\n]/g, " ")} (${skip.reason})`);
   for (const issue of plan.issues) output.push(`Warning: ${formatIssue(issue)}`);
   for (const line of plan.logLines) output.push(`Append LOG.md: ${line}`);

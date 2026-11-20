@@ -63,8 +63,12 @@ test("disk migration dry run leaves a nested destination absent, and apply write
   expect(existsSync(join(parent, "nested"))).toBe(false);
   const applied: Invocation = invoke([...args, "--apply"]);
   expect(applied.exitCode).toBe(0);
-  expect(applied.output).toContain("ok: 0 memory files, MEMORY.md 2 lines");
-  expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toBe(readFileSync("memory/MEMORY.md", "utf8"));
+  expect(applied.output).toContain("ok: 0 memory files, MEMORY.md 3 lines, scope project");
+  expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toBe(
+    markedIndex(
+      `<!-- hypermemory-scope: project -->\n${readFileSync("memory/MEMORY.md", "utf8").split("\n").slice(1).join("\n")}`,
+    ),
+  );
   expect(readFileSync(join(dest, "LOG.md"), "utf8")).toBe(
     `${readFileSync("memory/LOG.md", "utf8")}2026-11-19 | event | Unique note\n`,
   );
@@ -145,7 +149,7 @@ test("the package script invokes the CLI in dry-run and apply modes", (): void =
   const args: string[] = ["optmem", "--from", source, join(parent, "dest")];
   for (const [flags, expected] of [
     [[], "Dry run"],
-    [["--apply"], "ok: 0 memory files, MEMORY.md 2 lines"],
+    [["--apply"], "ok: 0 memory files, MEMORY.md 3 lines, scope project"],
   ] as const) {
     const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([process.execPath, "run", "migrate", ...args, ...flags]);
     expect(result.exitCode).toBe(0);
@@ -202,7 +206,7 @@ test("real ai-memory applies overflow indexes and leaves all 151 pages and index
   const args: string[] = ["ai-memory", "--from", wiki, "--project", "Example", dest, "--apply"];
   const first: Invocation = invoke(args);
   expect(first.exitCode).toBe(0);
-  expect(first.output).toContain("ok: 151 memory files, MEMORY.md 4 lines");
+  expect(first.output).toContain("ok: 151 memory files, MEMORY.md 5 lines, scope project");
   expect(readFileSync(join(dest, "MEMORY.md"), "utf8")).toContain("150 memórias de concept migradas do ai-memory");
   expect(readFileSync(join(dest, "index-concept.md"), "utf8").split("\n")).toHaveLength(152);
   expect(readdirSync(dest)).toHaveLength(155);

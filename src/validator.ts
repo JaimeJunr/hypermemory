@@ -1,4 +1,4 @@
-import { formatVersionIssue, MEMORY_INDEX, readFormat } from "./format";
+import { formatVersionIssue, MEMORY_INDEX, type MemoryScope, readFormat, readScope, scopeMarkerIssue } from "./format";
 import { type MemoryFile, validateFrontmatter } from "./frontmatter";
 import { isDomainIndex, validateIndexBudget, validateIndexLinks } from "./indexes";
 import type { Issue } from "./issue";
@@ -9,6 +9,8 @@ export type { Issue } from "./issue";
 
 export interface MemoryReader {
   list(): readonly string[];
+  // .md em subpastas (ex.: archive/), relativos à pasta; só a regra de escopo olha para eles.
+  nested(): readonly string[];
   read(file: string): string;
 }
 
@@ -20,6 +22,7 @@ export interface ValidationResult {
   readonly issues: readonly Issue[];
   readonly memoryFiles: number;
   readonly indexLines: number;
+  readonly scope: MemoryScope;
 }
 
 function isMemoryFile(file: string): boolean {
@@ -36,6 +39,38 @@ function loadIndexes(reader: MemoryReader, files: readonly string[]): Map<string
   return indexes;
 }
 
+function validateIndex(index: string, issues: Issue[], directory?: string): number {
+  const formatIssue: Issue | undefined = formatVersionIssue(readFormat(index), directory);
+  const scopeIssue: Issue | undefined = scopeMarkerIssue(index);
+  if (formatIssue !== undefined) issues.push(formatIssue);
+  if (scopeIssue !== undefined) issues.push(scopeIssue);
+  return validateIndexBudget(index, issues);
+}
+
+function personalField(metadata: MemoryFile["metadata"]): string | undefined {
+  const { type, kind, personal } = metadata;
+  if (type === "user") return 'metadata.type "user"';
+  if (kind === "profile") return 'metadata.kind "profile"';
+  if (type === "feedback" && personal === true) return "metadata.personal true";
+  return undefined;
+}
+
+function validateSharedScope(memories: readonly MemoryFile[], issues: Issue[]): void {
+  for (const { file, metadata } of memories) {
+    const field: string | undefined = personalField(metadata);
+    if (field === undefined) continue;
+    const message: string = `scope: received ${field} in a shared memory, expected it in the personal memory (~/.claude/hypermemory)`;
+    issues.push({ file, message });
+  }
+}
+
+function nestedMemories(reader: MemoryReader): MemoryFile[] {
+  const ignored: Issue[] = [];
+  return [...reader.nested()]
+    .sort()
+    .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), ignored));
+}
+
 export function validateMemory(
   reader: MemoryReader,
   previousLog: PreviousLogReader,
@@ -45,17 +80,17 @@ export function validateMemory(
   const files: string[] = [...reader.list()].sort();
   const indexes: Map<string, string> = loadIndexes(reader, files);
   const index: string = indexes.get(MEMORY_INDEX) ?? "";
-  const formatIssue: Issue | undefined = formatVersionIssue(readFormat(index), directory);
-  if (formatIssue !== undefined) issues.push(formatIssue);
-  const indexLines: number = validateIndexBudget(index, issues);
+  const scope: MemoryScope = readScope(index);
+  const indexLines: number = validateIndex(index, issues, directory);
   const memories: MemoryFile[] = files
     .filter(isMemoryFile)
     .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues));
+  if (scope === "shared") validateSharedScope([...memories, ...nestedMemories(reader)], issues);
   validateIndexLinks(indexes, new Set(files), memories, issues);
   validateSupersedes(memories, issues);
   validateHandoffs(memories, issues);
   const log: string = files.includes("LOG.md") ? reader.read("LOG.md") : "";
   validateLogLines(log, issues);
   validateLogHistory(log, previousLog.read(), issues);
-  return { issues, memoryFiles: memories.length, indexLines };
+  return { issues, memoryFiles: memories.length, indexLines, scope };
 }

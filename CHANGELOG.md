@@ -7,6 +7,19 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ## [Unreleased]
 
+### Fixed
+
+- `init` e `upgrade` recusam, sem gravar, inserir marcador num `MEMORY.md` no teto de 150 linhas ou 25 mil bytes; antes gravavam e reprovavam o próprio `check`.
+
+### Added
+
+- Escopos `personal`, `project` e `shared` com marcador opcional na linha 2 de `MEMORY.md`. O formato da memória continua em 1, sem nova migração de formato.
+- Comando `hypermemory init` para criar uma memória com escopo ou acrescentar o marcador a um índice existente.
+- Opções de migração `--scope` para novos destinos e `--personal-dest` para encaminhar perfis do ai-memory à memória pessoal.
+- Mod `hypermemory-escopo` em `mod/`, instalável pelo marketplace do repositório, que barra memória pessoal gravada por Write, Edit ou Bash numa pasta `shared`.
+- Testes de invariante (todo comando que grava termina dentro do orçamento do índice ou recusa) e de contrato entre o mod e o validador, rodados no CI junto com os testes do mod.
+- Validação do escopo `shared`, que rejeita memórias do tipo `user`, do kind `profile` e feedback marcado como pessoal, inclusive em subpastas como `archive/`.
+
 ## [0.1.0] - 2026-11-19
 
 ### Added

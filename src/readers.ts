@@ -10,6 +10,21 @@ export class DirectoryMemoryReader implements MemoryReader {
     return entries.filter((entry: Dirent): boolean => entry.isFile()).map((entry: Dirent): string => entry.name);
   }
 
+  nested(): string[] {
+    return this.walk("", 0);
+  }
+
+  private walk(prefix: string, depth: number): string[] {
+    const entries: Dirent[] = readdirSync(join(this.directory, prefix), { withFileTypes: true });
+    const files: string[] = entries
+      .filter((entry: Dirent): boolean => depth > 0 && entry.isFile() && entry.name.endsWith(".md"))
+      .map((entry: Dirent): string => join(prefix, entry.name));
+    const folders: Dirent[] = entries.filter(
+      (entry: Dirent): boolean => entry.isDirectory() && !entry.name.startsWith("."),
+    );
+    return [...files, ...folders.flatMap((entry: Dirent): string[] => this.walk(join(prefix, entry.name), depth + 1))];
+  }
+
   read(file: string): string {
     const path: string = join(this.directory, file);
     return readFileSync(path, "utf8");

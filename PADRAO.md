@@ -16,6 +16,16 @@ ln -s /caminho/do/projeto/memory ~/.claude/projects/<projeto>/memory
 
 Alternativa: `autoMemoryDirectory` no `settings.json` (caminho absoluto ou começando com `~/`).
 
+## Escopo: pessoal, projeto e compartilhado
+
+A segunda linha de `MEMORY.md`, logo após o marcador do formato, pode declarar o escopo no comentário `<!-- hypermemory-scope: personal|project|shared -->`. Escolha um dos três valores. Sem o marcador, o escopo é `project`.
+
+- **Pessoal (`personal`)** fica em `~/.claude/hypermemory`. Inclua `@~/.claude/hypermemory/MEMORY.md` em `~/.claude/CLAUDE.md` para carregá-la em toda sessão.
+- **Projeto (`project`)** é a memória nativa de um repositório nesta máquina.
+- **Compartilhado (`shared`)** é a memória versionada num repositório que outras pessoas leem. Guarde nela só fatos do projeto.
+
+Gosto, hábito e regra pessoal vão sempre para a memória pessoal. Isso inclui `metadata.type: user`, `metadata.kind: profile` e feedback pessoal (marcado com `metadata.personal: true`). A validação rejeita esses arquivos em pastas com escopo `shared`. A regra vale também para `.md` em subpastas, como `archive/`, que herdam o escopo do `MEMORY.md` da pasta-mãe.
+
 ## Versões e migração do formato
 
 O projeto segue [SemVer 2.0.0](https://semver.org/lang/pt-BR/spec/v2.0.0.html) e [Keep a Changelog 1.1.0](https://keepachangelog.com/pt-BR/1.1.0/).
@@ -83,7 +93,7 @@ Regras do corpo, iguais às que o Claude Code já segue, mais duas:
 
 ## Índice (`MEMORY.md`)
 
-Após o marcador do formato, use uma linha por memória, seguindo o índice nativo:
+Após o marcador do formato e o de escopo, se presente, use uma linha por memória, seguindo o índice nativo:
 
 ```
 - [Título](slug.md) — gancho de uma linha

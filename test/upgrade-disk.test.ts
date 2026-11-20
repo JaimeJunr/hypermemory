@@ -104,7 +104,7 @@ test("package script and direct entry point upgrade real directories from dry-ru
     const target: string = legacyDirectory(parent);
     for (const [flags, expected] of [
       [[], "Dry run: format 0 → 1"],
-      [["--apply"], "ok: 1 memory files, MEMORY.md 2 lines"],
+      [["--apply"], "ok: 1 memory files, MEMORY.md 2 lines, scope project"],
       [["--apply"], "ok: already at format 1"],
     ] as const) {
       const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([process.execPath, "run", entry, target, ...flags]);
@@ -126,7 +126,7 @@ test("the in-repo wrapper dispatches through a symlink from a different working 
     [["check", target], 1, "format: received missing"],
     [["upgrade", target], 0, "Dry run: format 0 → 1"],
     [["migrate", "optmem", "--from", source, join(parent, "new")], 0, "Dry run"],
-    [["unknown"], 1, "check | migrate | upgrade"],
+    [["unknown"], 1, "check | migrate | upgrade | init"],
   ] as const) {
     const result: Bun.ReadableSyncSubprocess = Bun.spawnSync([wrapper, ...args], { cwd: parent });
     expect(result.exitCode).toBe(status);

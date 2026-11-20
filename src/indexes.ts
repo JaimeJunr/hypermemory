@@ -18,6 +18,15 @@ export function validateIndexBudget(content: string, issues: Issue[]): number {
   return lines;
 }
 
+// Inserir marcador (formato, escopo) soma uma linha: num índice no teto, quebraria o orçamento que o check cobra.
+export function overflowIssues(content: string): Issue[] {
+  const issues: Issue[] = [];
+  validateIndexBudget(content, issues);
+  return issues;
+}
+
+export const OVERFLOW_HINT: string = "group entries into index-<dominio>.md first";
+
 export function isDomainIndex(file: string): boolean {
   const isMarkdown: boolean = file.endsWith(".md");
   return isMarkdown && file.startsWith("index-");

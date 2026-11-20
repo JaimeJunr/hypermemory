@@ -36,7 +36,7 @@ export function runCli(args: readonly string[], openMemory: OpenMemory): CliResu
     if (result.issues.length > 0) {
       return { exitCode: 1, output: result.issues.map(formatIssue) };
     }
-    const summary: string = `ok: ${result.memoryFiles} memory files, MEMORY.md ${result.indexLines} lines`;
+    const summary: string = `ok: ${result.memoryFiles} memory files, MEMORY.md ${result.indexLines} lines, scope ${result.scope}`;
     return { exitCode: 0, output: [summary] };
   } catch (error: unknown) {
     const reason: string = error instanceof Error ? error.message : String(error);

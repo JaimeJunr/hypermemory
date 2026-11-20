@@ -156,3 +156,22 @@ test("newer formats are refused in both dry-run and apply mode without writes", 
   }
   expect(io.target.operations).toEqual([]);
 });
+
+test("an upgrade that would push the index over its budget is refused in dry-run and apply without writes", (): void => {
+  const fullLines: string = Array.from({ length: 150 }, (_, i: number): string => `- [F${i}](f${i}.md)`).join("\n");
+  const fullBytes: string = `- [Big](big.md) — ${"x".repeat(24_980)}`;
+  for (const [index, field] of [
+    [fullLines, "line count"],
+    [fullBytes, "byte count"],
+  ] as const) {
+    const io: FakeUpgradeIO = new FakeUpgradeIO(new FakeUpgradeDestination({ "MEMORY.md": index }));
+    for (const flags of [[], ["--apply"]]) {
+      const result: ReturnType<typeof runUpgrade> = runUpgrade(["memory", ...flags], io);
+      expect(result.exitCode).toBe(1);
+      expect(result.output.join("\n")).toContain(`MEMORY.md: ${field}: received`);
+      expect(result.output.join("\n")).toContain("index-<dominio>.md");
+    }
+    expect(io.target.operations).toEqual([]);
+    expect(io.target.files["MEMORY.md"]).toBe(index);
+  }
+});
