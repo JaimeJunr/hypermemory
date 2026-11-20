@@ -10,7 +10,11 @@ export class FakeMemoryReader implements MemoryReader {
   }
 
   nested(): readonly string[] {
-    return Object.keys(this.files).filter((file: string): boolean => file.includes("/"));
+    return Object.keys(this.files).filter((file: string): boolean => file.includes("/") && !file.startsWith("../"));
+  }
+
+  exists(path: string): boolean {
+    return this.files[path] !== undefined;
   }
 
   read(file: string): string {

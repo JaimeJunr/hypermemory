@@ -9,6 +9,7 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ### Fixed
 
+- Link do índice para fora da pasta da memória (`../arquivos/x.md`, `../CLAUDE.md`) passa no `check` quando o arquivo existe no repositório; antes era sempre recusado, e repos de contexto perdiam a navegação do índice para o resto do repo. Alvo inexistente continua reprovando.
 - `init` e `upgrade` recusam, sem gravar, inserir marcador num `MEMORY.md` no teto de 150 linhas ou 25 mil bytes; antes gravavam e reprovavam o próprio `check`.
 
 ### Added

@@ -12,6 +12,8 @@ export interface MemoryReader {
   // .md em subpastas (ex.: archive/), relativos à pasta; só a regra de escopo olha para eles.
   nested(): readonly string[];
   read(file: string): string;
+  // Alvo de link que sai da pasta (../arquivos/x.md), relativo a ela: repo de contexto liga a memória ao resto do repo.
+  exists(path: string): boolean;
 }
 
 export interface PreviousLogReader {
@@ -86,7 +88,7 @@ export function validateMemory(
     .filter(isMemoryFile)
     .map((file: string): MemoryFile => validateFrontmatter(file, reader.read(file), issues));
   if (scope === "shared") validateSharedScope([...memories, ...nestedMemories(reader)], issues);
-  validateIndexLinks(indexes, new Set(files), memories, issues);
+  validateIndexLinks(indexes, new Set(files), (path: string): boolean => reader.exists(path), memories, issues);
   validateSupersedes(memories, issues);
   validateHandoffs(memories, issues);
   const log: string = files.includes("LOG.md") ? reader.read("LOG.md") : "";
