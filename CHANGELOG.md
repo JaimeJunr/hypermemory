@@ -7,6 +7,8 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-20
+
 ### Fixed
 
 - Link do índice para fora da pasta da memória (`../arquivos/x.md`, `../CLAUDE.md`) passa no `check` quando o arquivo existe no repositório; antes era sempre recusado, e repos de contexto perdiam a navegação do índice para o resto do repo. Alvo inexistente continua reprovando.
@@ -36,5 +38,6 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 Formato da memória: 1
 
-[Unreleased]: https://github.com/JaimeJunr/hypermemory/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/JaimeJunr/hypermemory/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/JaimeJunr/hypermemory/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JaimeJunr/hypermemory/releases/tag/v0.1.0
