@@ -34,7 +34,7 @@ test("each index reports broken Markdown targets, including paths outside the di
     },
     {
       file: "MEMORY.md",
-      message: 'link target: received "../fact.md", expected an existing Markdown file in the memory directory',
+      message: 'link target: received "../fact.md", expected an existing Markdown file next to the memory directory',
     },
     {
       file: "index-work.md",

@@ -50,11 +50,20 @@ function validateLinksFrom(
   index: string,
   content: string,
   existingFiles: ReadonlySet<string>,
+  outsideExists: (path: string) => boolean,
   supersededFiles: ReadonlySet<string>,
   linkedFiles: Set<string>,
   issues: Issue[],
 ): void {
   visitIndexTargets(content, (target: string, href: string): void => {
+    if (target.startsWith("../")) {
+      if (!outsideExists(target)) {
+        issues.push(
+          receivedIssue(index, "link target", href, "an existing Markdown file next to the memory directory"),
+        );
+      }
+      return;
+    }
     linkedFiles.add(target);
     if (!existingFiles.has(target)) {
       issues.push(receivedIssue(index, "link target", href, "an existing Markdown file in the memory directory"));
@@ -76,6 +85,7 @@ export function visitIndexTargets(content: string, visit: (target: string, href:
 export function validateIndexLinks(
   indexes: ReadonlyMap<string, string>,
   existingFiles: ReadonlySet<string>,
+  outsideExists: (path: string) => boolean,
   memories: readonly MemoryFile[],
   issues: Issue[],
 ): void {
@@ -86,7 +96,7 @@ export function validateIndexLinks(
   );
   const linkedFiles: Set<string> = new Set();
   for (const [index, content] of indexes) {
-    validateLinksFrom(index, content, existingFiles, supersededFiles, linkedFiles, issues);
+    validateLinksFrom(index, content, existingFiles, outsideExists, supersededFiles, linkedFiles, issues);
   }
   for (const { file } of memories) {
     if (!supersededFiles.has(file) && !linkedFiles.has(file)) {

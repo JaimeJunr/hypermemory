@@ -1,4 +1,4 @@
-import { type Dirent, readdirSync, readFileSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { MemoryReader, PreviousLogReader } from "./validator";
 
@@ -28,6 +28,11 @@ export class DirectoryMemoryReader implements MemoryReader {
   read(file: string): string {
     const path: string = join(this.directory, file);
     return readFileSync(path, "utf8");
+  }
+
+  exists(path: string): boolean {
+    const target: string = join(this.directory, path);
+    return existsSync(target) && statSync(target).isFile();
   }
 }
 
