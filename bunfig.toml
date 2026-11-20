@@ -1,2 +1,4 @@
 [test]
+# mod/hooks/register.test.ts roda no `claude plugin test` (precisa de claude-code/testing), não no bun test.
+root = "test"
 coverageThreshold = { lines = 0.8, functions = 0.8 }

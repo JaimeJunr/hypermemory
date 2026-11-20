@@ -23,6 +23,16 @@ memory/            o esqueleto para copiar (plano, como o nativo)
 
 Use `hypermemory init ~/.claude/hypermemory --scope personal --apply` para criar sua memória pessoal. Sem `--apply`, o comando mostra a alteração prevista. Em um índice do formato atual sem marcador de escopo, `--apply` insere o marcador na linha 2.
 
+## Mod que barra memória pessoal em pasta compartilhada
+
+O mod `hypermemory-escopo` (em `mod/`) nega, na hora da gravação, Write, Edit ou Bash (`>`, `tee`, `cp`, `mv`) que ponha memória pessoal numa pasta cujo `MEMORY.md` declara `hypermemory-scope: shared`, inclusive em subpastas. O que escapar dele (script indireto, variável vinda de fora) o `check` pega. Instale no Claude Code:
+
+```
+/plugin install hypermemory-escopo --marketplace JaimeJunr/hypermemory
+```
+
+Responda `y` para adicionar o marketplace e escolha o escopo de usuário.
+
 ## Validar
 
 Instale as dependências de desenvolvimento, rode os testes e valide a pasta de memória:
@@ -42,7 +52,7 @@ HM_RUNS=1 HM_PASS=1 e2e/rodar.sh evento
 
 ## Qualidade
 
-Execute `bun run gate` para verificar a formatação e o lint com Biome, os tipos com TypeScript, o limite de 300 linhas por arquivo em `src/` e `test/` e os testes com cobertura mínima de 80% de linhas e funções por arquivo instrumentado.
+Execute `bun run gate` para verificar a formatação e o lint com Biome, os tipos com TypeScript, o limite de 300 linhas por arquivo em `src/`, `test/` e `mod/hooks/` e os testes com cobertura mínima de 80% de linhas e funções por arquivo instrumentado. Os testes do mod rodam com `claude plugin test mod`, e o CI roda os dois. `test/index-budget-invariant.test.ts` gera índices até o teto e exige que `init`, `upgrade` e `migrate` terminem dentro do orçamento ou recusem sem gravar; `test/mod-contract.test.ts` exige que o mod e o validador concordem sobre o que é memória pessoal.
 
 ## Migrar
 

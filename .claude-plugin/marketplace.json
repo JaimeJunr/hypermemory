@@ -1,0 +1,5 @@
+{
+  "name": "hypermemory",
+  "owner": { "name": "JaimeJunr" },
+  "plugins": [{ "name": "hypermemory-escopo", "source": "./mod" }]
+}

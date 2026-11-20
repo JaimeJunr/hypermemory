@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const MAX_LINES = 300;
@@ -18,7 +18,10 @@ function countLines(content: string): number {
 }
 
 export function checkSize(root: string): { checked: number; violations: string[] } {
-  const files = ["src", "test"].flatMap((directory) => [...filesUnder(join(root, directory))]).sort();
+  const files = ["src", "test", "mod/hooks"]
+    .filter((directory) => existsSync(join(root, directory)))
+    .flatMap((directory) => [...filesUnder(join(root, directory))])
+    .sort();
   const violations: string[] = [];
   for (const file of files) {
     const lines = countLines(readFileSync(file, "utf8"));
@@ -33,6 +36,6 @@ export function checkSize(root: string): { checked: number; violations: string[]
 if (import.meta.main) {
   const { checked, violations } = checkSize(process.cwd());
   for (const violation of violations) console.error(violation);
-  console.log(`Size checked ${checked} files in src/ and test/. ${violations.length} violations.`);
+  console.log(`Size checked ${checked} files in src/, test/ and mod/hooks/. ${violations.length} violations.`);
   process.exitCode = Number(violations.length > 0);
 }
