@@ -8,7 +8,7 @@ Substitui os dois: quem usa OptMem ou ai-memory migra a memória existente com `
 
 ```
 PADRAO.md          as regras: arquivos, frontmatter, índice, diário, ciclo
-BLOCO-AGENTE.md    o bloco para colar no CLAUDE.md do projeto
+BLOCO-AGENTE.md    as regras do agente (o mod já as entrega; o bloco serve a quem não usa o mod)
 modelos/           arquivo de memória, handoff e sub-índice de domínio
 memory/            o esqueleto para copiar (plano, como o nativo)
   MEMORY.md        índice que o Claude Code carrega no começo (orçamento: 150 linhas)
@@ -19,13 +19,19 @@ memory/            o esqueleto para copiar (plano, como o nativo)
 
 1. Crie `memory/` na raiz do projeto com `hypermemory init memory --scope shared --apply` se ela for versionada e lida por outras pessoas. Use `--scope project` para uma memória local.
 2. Ligue a pasta nativa a ela: `ln -s <projeto>/memory ~/.claude/projects/<projeto>/memory` (a pasta nativa precisa não existir ou estar vazia).
-3. Cole o bloco de `BLOCO-AGENTE.md` no `CLAUDE.md` do projeto.
+3. Instale o mod `hypermemory-escopo` (seção abaixo): ele entrega as regras ao agente e o resumo da sessão anterior, sem colar nada no `CLAUDE.md`.
 
 Use `hypermemory init ~/.claude/hypermemory --scope personal --apply` para criar sua memória pessoal. Sem `--apply`, o comando mostra a alteração prevista. Em um índice do formato atual sem marcador de escopo, `--apply` insere o marcador na linha 2.
 
-## Mod que barra memória pessoal em pasta compartilhada
+## Mod `hypermemory-escopo`
 
-O mod `hypermemory-escopo` (em `mod/`) nega, na hora da gravação, Write, Edit ou Bash (`>`, `tee`, `cp`, `mv`) que ponha memória pessoal numa pasta cujo `MEMORY.md` declara `hypermemory-scope: shared`, inclusive em subpastas. O que escapar dele (script indireto, variável vinda de fora) o `check` pega. Instale no Claude Code:
+Instalado, o mod (em `mod/`) faz três coisas, sem nada no `CLAUDE.md`:
+
+- **Regras:** acrescenta ao prompt do sistema uma seção com as regras do Hypermemory (as de `BLOCO-AGENTE.md`, sem as de handoff).
+- **Resumo da sessão anterior:** a próxima sessão no mesmo projeto sabe o que aconteceu na anterior. A cada turno do agente principal, e uma última vez ao fechar, o mod reescreve no lugar o handoff da sessão por regra fixa (sem chamar modelo): até 10 pedidos do usuário, arquivos editados, último texto do assistente, no máximo 6.000 caracteres. Cobre sessão que cai sem fechar. Os handoffs ficam em `~/.claude/hypermemory/sessoes/<projeto>/handoff-AAAA-MM-DD-<id>.md`, nunca na `memory/` do projeto (repo de time é versionado). Ao abrir uma sessão, o mod pega até 3 handoffs `status: open` do projeto, pede ao Haiku (`claude-haiku-5-5`, esforço baixo, 600 tokens, 8 s, só o corpo do handoff, sem histórico) para reescrever em texto corrido curto, ou usa o texto por regra se ele falhar, injeta no contexto e passa o arquivo para `status: claimed`. Handoff já pego não volta.
+- **Escopo:** nega, na hora da gravação, Write, Edit ou Bash (`>`, `tee`, `cp`, `mv`) que ponha memória pessoal numa pasta cujo `MEMORY.md` declara `hypermemory-scope: shared`, inclusive em subpastas. O que escapar dele (script indireto, variável vinda de fora) o `check` pega.
+
+Falha de qualquer hook não trava a sessão. Instale no Claude Code:
 
 ```
 /plugin install hypermemory-escopo --marketplace JaimeJunr/hypermemory

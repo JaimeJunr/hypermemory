@@ -14,6 +14,8 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ### Added
 
+- Mod `hypermemory-escopo` entrega as regras do Hypermemory ao agente por `prompt.compose`, sem colar bloco no `CLAUDE.md`.
+- Resumo automático de sessão: o mod grava o handoff da sessão a cada turno e ao fechar (por regra, sem modelo), em `~/.claude/hypermemory/sessoes/<projeto>/`, e na abertura da próxima sessão injeta os até 3 handoffs abertos mais recentes, reescritos pelo Haiku (com fallback por regra), marcando-os `claimed`.
 - Escopos `personal`, `project` e `shared` com marcador opcional na linha 2 de `MEMORY.md`. O formato da memória continua em 1, sem nova migração de formato.
 - Comando `hypermemory init` para criar uma memória com escopo ou acrescentar o marcador a um índice existente.
 - Opções de migração `--scope` para novos destinos e `--personal-dest` para encaminhar perfis do ai-memory à memória pessoal.
