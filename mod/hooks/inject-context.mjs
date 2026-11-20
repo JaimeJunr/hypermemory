@@ -49,20 +49,20 @@ export function contextFor(input, home) {
   return deliverOnce(summaryPath(home, input.cwd, input.session_id));
 }
 
-/** @returns {Promise<string>} */
-async function readStdin() {
-  const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  return Buffer.concat(chunks).toString("utf8");
+/**
+ * Resposta do hook para a entrada crua do stdin: o JSON a imprimir, ou "" para não acrescentar nada.
+ * @param {string} raw @param {string} home @returns {string}
+ */
+export function answer(raw, home) {
+  try {
+    const input = JSON.parse(raw);
+    const context = contextFor(input, home);
+    if (context === undefined) return "";
+    return JSON.stringify({ hookSpecificOutput: { hookEventName: input.hook_event_name, additionalContext: context } });
+  } catch {
+    return ""; // falha aqui nunca trava a sessão: o prompt segue sem o contexto
+  }
 }
 
-async function main() {
-  const input = JSON.parse(await readStdin());
-  const context = contextFor(input, process.env.HOME ?? "");
-  if (context === undefined) return;
-  const hookSpecificOutput = { hookEventName: input.hook_event_name, additionalContext: context };
-  process.stdout.write(JSON.stringify({ hookSpecificOutput }));
-}
-
-// Falha aqui nunca trava a sessão: sai 0 sem imprimir e o prompt segue sem o contexto.
-if (process.argv[1] === fileURLToPath(import.meta.url)) main().catch(() => undefined);
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  process.stdout.write(answer(readFileSync(0, "utf8"), process.env.HOME ?? ""));

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { contextFor, summaryPath } from "../mod/hooks/inject-context.mjs";
+import { answer, contextFor, summaryPath } from "../mod/hooks/inject-context.mjs";
 
 // O hook de comando é o único canal que o cc-plugin-sec-default deixa chegar ao modelo (medido em 2026-11-20):
 // ele entrega as regras na abertura e o resumo preparado pelo mod no primeiro prompt.
@@ -87,4 +87,11 @@ test("rodado pelo Claude Code, imprime o JSON do hook com o contexto", (): void 
 
 test("entrada quebrada não trava a sessão: sai 0 e não imprime nada", (): void => {
   expect(run("{não é json", "/h")).toBe("");
+});
+
+test("a resposta em processo traz o JSON do hook e fica vazia sem contexto ou com entrada quebrada", (): void => {
+  const out: string = answer(JSON.stringify({ hook_event_name: "SessionStart", session_id: SESSION, cwd: CWD }), "/h");
+  expect(JSON.parse(out).hookSpecificOutput.hookEventName).toBe("SessionStart");
+  expect(answer(JSON.stringify({ hook_event_name: "Stop", session_id: SESSION, cwd: CWD }), "/h")).toBe("");
+  expect(answer("{quebrado", "/h")).toBe("");
 });
