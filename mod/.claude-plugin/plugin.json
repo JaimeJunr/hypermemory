@@ -1,5 +1,5 @@
 {
   "name": "hypermemory-escopo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Entrega as regras do Hypermemory e o resumo da sessão anterior sem CLAUDE.md; barra memória pessoal numa memória compartilhada (hypermemory-scope: shared)."
 }
