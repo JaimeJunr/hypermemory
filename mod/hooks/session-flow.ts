@@ -2,6 +2,7 @@
 // para o bun test rodar sem o Claude Code. Os resumos moram sempre na pasta pessoal, nunca na memory/ do
 // projeto: repo de time é versionado.
 
+import { CAPTURE_SYSTEM, candidatesPrompt, formatCandidates, parseCandidates } from "./capture-rules";
 import {
   buildBody,
   claimedContent,
@@ -76,10 +77,18 @@ async function rewrite(io: SessionIo, body: string): Promise<string | undefined>
   return text === undefined || text.trim() === "" ? undefined : text.trim();
 }
 
+// Candidatos a memória do registro: falha ou resposta vazia do modelo não deixa nada de fora do resumo.
+async function capture(io: SessionIo, body: string): Promise<string> {
+  const reply: string | undefined = await io.summarize(CAPTURE_SYSTEM, candidatesPrompt(body)).catch(() => undefined);
+  return formatCandidates(parseCandidates(reply ?? ""));
+}
+
 async function claim(io: SessionIo, dir: string, entry: HandoffFile, sessionId: string): Promise<InjectedSummary> {
   const parsed = parseHandoff(entry.content);
-  const rewritten: string | undefined = parsed.consolidated ? undefined : await rewrite(io, parsed.body);
-  const body: string = rewritten ?? parsed.body;
+  const [rewritten, candidates]: [string | undefined, string] = parsed.consolidated
+    ? [undefined, ""]
+    : await Promise.all([rewrite(io, parsed.body), capture(io, parsed.body)]);
+  const body: string = rewritten === undefined ? parsed.body : [rewritten, candidates].filter(Boolean).join("\n\n");
   const consolidated: string =
     rewritten === undefined ? entry.content : setField(replaceBody(entry.content, body), "consolidated", "true");
   const claimedBy: string = `${await io.today()} ${sessionId}`;

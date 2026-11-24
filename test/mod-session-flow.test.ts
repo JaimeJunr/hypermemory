@@ -63,7 +63,8 @@ test("a abertura reescreve com o modelo, injeta e passa o handoff para claimed",
   const text = await loadPrevious(io, "sessao-nova-1");
   expect(text).toContain("## Resumo da sessão anterior neste projeto");
   expect(text).toContain("resumo curto");
-  expect(io.prompts).toEqual(["Registro da sessão:\n\ncorpo por regra"]);
+  // Duas chamadas sobre o mesmo registro: o resumo e os candidatos a memória.
+  expect(io.prompts).toEqual(["Registro da sessão:\n\ncorpo por regra", "Registro da sessão:\n\ncorpo por regra"]);
   const saved = parseHandoff(io.files.get(`${DIR}/handoff-2026-11-19-11111111.md`) ?? "");
   expect([saved.status, saved.claimedBy, saved.consolidated, saved.body]).toEqual([
     "claimed",

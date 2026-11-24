@@ -7,6 +7,11 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ## [Unreleased]
 
+### Added
+
+- Comando `hypermemory aging <pasta> [--days N]` (padrão 180 dias): lista memórias sem toque, pela data mais recente entre `metadata.modified`, "conferido em/medido em" do corpo e a data do arquivo. `pinned: true`, `status: superseded` e handoffs ficam fora. Só aponta; não apaga nem edita, e sai com 0.
+- Captura de candidatos a memória no mod: ao abrir a sessão, uma segunda chamada ao Haiku, sobre o mesmo registro do handoff, sugere até 3 fatos (`kind | texto`, até 280 bytes, sem cara de segredo). Eles entram no resumo da sessão anterior; nada é gravado na memória do projeto, e o agente decide o que promover.
+
 ## [0.2.0] - 2026-11-20
 
 ### Fixed

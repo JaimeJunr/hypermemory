@@ -25,10 +25,11 @@ Use `hypermemory init ~/.claude/hypermemory --scope personal --apply` para criar
 
 ## Mod `hypermemory-escopo`
 
-Instalado, o mod (em `mod/`) faz três coisas, sem nada no `CLAUDE.md`:
+Instalado, o mod (em `mod/`) faz quatro coisas, sem nada no `CLAUDE.md`:
 
 - **Regras:** um hook de comando (`hooks/inject-context.mjs`, roda com o `node`) entrega ao agente, na abertura de cada sessão, as regras do Hypermemory (`hooks/agent-rules.md`: as de `BLOCO-AGENTE.md`, sem as de handoff). É hook de comando, e não `prompt.compose`, porque o `cc-plugin-sec-default` das organizações pula os hooks de mod que mexem no contexto (medido em 2026-11-20).
 - **Resumo da sessão anterior:** a próxima sessão no mesmo projeto sabe o que aconteceu na anterior. A cada turno do agente principal, e uma última vez ao fechar, o mod reescreve no lugar o handoff da sessão por regra fixa (sem chamar modelo): até 10 pedidos do usuário, arquivos editados, último texto do assistente, no máximo 6.000 caracteres. Cobre sessão que cai sem fechar. Os handoffs ficam em `~/.claude/hypermemory/sessoes/<projeto>/handoff-AAAA-MM-DD-HHMMSS-<id>.md`, nunca na `memory/` do projeto (repo de time é versionado). Ao abrir uma sessão (`session.start`), o mod pega até 3 handoffs `status: open` do projeto, pede ao Haiku (`claude-haiku-5-5`, esforço baixo, 600 tokens, 8 s, só o corpo do handoff, sem histórico) para reescrever em texto corrido curto, ou usa o texto por regra se ele falhar, grava o resultado em `.resumo-<sessão>.md` na mesma pasta e passa o handoff para `status: claimed`. O hook de comando entrega esse resumo no primeiro prompt, uma vez só. Handoff já pego não volta. `/clear` não dispara o `session.start` e começa sem o resumo.
+- **Candidatos a memória:** na mesma abertura, o mod faz uma segunda chamada ao Haiku sobre o mesmo registro e junta ao resumo até 3 linhas `kind | texto` (decisão, armadilha, regra, procedimento). É sugestão: nada vai para a `memory/` do projeto, e o agente promove o que valer. O registro do handoff traz só pedidos, arquivos editados e a última resposta, então os candidatos são magros.
 - **Escopo:** nega, na hora da gravação, Write, Edit ou Bash (`>`, `tee`, `cp`, `mv`) que ponha memória pessoal numa pasta cujo `MEMORY.md` declara `hypermemory-scope: shared`, inclusive em subpastas. O que escapar dele (script indireto, variável vinda de fora) o `check` pega.
 
 Falha de qualquer hook não trava a sessão. Precisa do `node` no `PATH`. Instale no Claude Code:
@@ -60,6 +61,14 @@ HM_RUNS=1 HM_PASS=1 e2e/rodar.sh evento
 
 Execute `bun run gate` para verificar a formatação e o lint com Biome, os tipos com TypeScript, o limite de 300 linhas por arquivo em `src/`, `test/` e `mod/hooks/` e os testes com cobertura mínima de 80% de linhas e funções por arquivo instrumentado. Os testes do mod rodam com `claude plugin test mod`, e o CI roda os dois. `test/index-budget-invariant.test.ts` gera índices até o teto e exige que `init`, `upgrade` e `migrate` terminem dentro do orçamento ou recusem sem gravar; `test/mod-contract.test.ts` exige que o mod e o validador concordem sobre o que é memória pessoal.
 
+## Envelhecimento
+
+```sh
+hypermemory aging <pasta> [--days N]
+```
+
+Lista as memórias sem toque há mais de N dias (padrão 180), da mais velha para a mais nova. A data é a mais recente entre `metadata.modified`, as datas "conferido em" e "medido em" do corpo e a data do arquivo. `pinned: true`, `status: superseded` e handoffs não aparecem. O comando só aponta: re-confira o fato (e escreva "conferido em AAAA-MM-DD"), substitua-o ou fixe-o com `pinned: true`. Não apaga nem edita nada.
+
 ## Migrar
 
 ```sh
@@ -79,4 +88,4 @@ As mudanças de cada versão estão no [CHANGELOG.md](CHANGELOG.md). O wrapper d
 ## O que ficou de fora
 
 - Do OptMem: o script `memo`, o registro de largura fixa e a árvore binária de resumos. O papel dos resumos passa para os arquivos e o índice.
-- Do ai-memory: servidor, banco, captura por hooks, busca por ranking, envelhecimento automático e pastas por tipo (a memória nativa é plana, então o tipo fica em `metadata.kind`).
+- Do ai-memory: servidor, banco, busca por ranking e pastas por tipo (a memória nativa é plana, então o tipo fica em `metadata.kind`). A captura por hooks e o envelhecimento entraram em versão enxuta, sem servidor nem banco (seções abaixo).

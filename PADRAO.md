@@ -120,6 +120,10 @@ Fato durável vai direto para arquivo próprio, como o Claude Code já faz; não
 3. **Fim de tarefa**: linhas do diário que se mostraram duráveis viram arquivo, com `origin`.
 4. **Fim de sessão com trabalho aberto**: escrever o handoff ([modelo](modelos/handoff.md)).
 
+## Envelhecimento
+
+Memória que ninguém re-confere apodrece. `hypermemory aging <pasta>` lista as sem toque há mais de 180 dias (ajustável com `--days`). Quem decide é a pessoa: re-conferir (e escrever "conferido em AAAA-MM-DD"), substituir ou fixar com `pinned: true`. O comando nunca apaga nem edita.
+
 ## Substituir, nunca apagar
 
 Fato que deixou de valer: o arquivo velho ganha `status: superseded` e `superseded_by`; o novo leva o fato atual e um link para o velho; no índice fica só o novo. Memória errada (que nunca foi verdade) pode ser apagada, como o Claude Code já faz.
