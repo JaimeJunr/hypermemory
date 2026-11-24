@@ -57,3 +57,9 @@ test("a lista sai da mais velha para a mais nova", (): void => {
   ];
   expect(findStale(files, NOW, 180).map((item) => item.file)).toEqual(["velha.md", "nova.md"]);
 });
+
+test("o limite é exclusivo: exatamente N dias não aparece, N+1 aparece", (): void => {
+  const noLimite: AgingInput = input("a.md", page(""), new Date("2026-05-28T00:00:00Z"));
+  const umDiaAlem: AgingInput = input("b.md", page(""), new Date("2026-05-27T00:00:00Z"));
+  expect(findStale([noLimite, umDiaAlem], NOW, 180).map((item) => item.file)).toEqual(["b.md"]);
+});

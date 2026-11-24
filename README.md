@@ -61,6 +61,8 @@ HM_RUNS=1 HM_PASS=1 e2e/rodar.sh evento
 
 Execute `bun run gate` para verificar a formatação e o lint com Biome, os tipos com TypeScript, o limite de 300 linhas por arquivo em `src/`, `test/` e `mod/hooks/` e os testes com cobertura mínima de 80% de linhas e funções por arquivo instrumentado. Os testes do mod rodam com `claude plugin test mod`, e o CI roda os dois. `test/index-budget-invariant.test.ts` gera índices até o teto e exige que `init`, `upgrade` e `migrate` terminem dentro do orçamento ou recusem sem gravar; `test/mod-contract.test.ts` exige que o mod e o validador concordem sobre o que é memória pessoal.
 
+Os gates têm três camadas. **Commit e push** (lefthook, instalado pelo `bun install`): Biome nos arquivos staged no commit; lint, tipos, tamanho e testes no push. **PR:** o modelo em `.github/pull_request_template.md` e `scripts/check-pr-rules.ts` (mudança em `src/`, `mod/` ou `bin/` exige `CHANGELOG.md`). **CI:** os checks `static` (lint, tipos, tamanho, `bun audit`, regras de PR) e `test` (testes com cobertura, validação do mod e mutação nos arquivos do diff). A mutação (`bun run mutate --all`) aplica cada troca de `scripts/mutants.ts` e exige que a suíte falhe; cobertura de linha não prova que o teste pega o erro, a mutação prova.
+
 ## Envelhecimento
 
 ```sh

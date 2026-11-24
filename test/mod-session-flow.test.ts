@@ -188,3 +188,15 @@ test("checkpoint gravado enquanto o modelo resume não é sobrescrito pelo resum
   await prepareSummary(io, "outra-0000");
   expect(io.files.get(file)).toBe(newer);
 });
+
+test("candidatos sugeridos pelo modelo entram no resumo injetado e no handoff gravado", async () => {
+  const io = new FakeSessionIo(
+    { [`${DIR}/handoff-2026-11-19-11111111.md`]: open("11111111", "corpo por regra") },
+    "decision | Usar SQLite no cache",
+  );
+  const text = await loadPrevious(io, "sessao-nova-1");
+  expect(text).toContain(
+    "**Candidatos a memória (revise; grave só os que valem):**\n- decision | Usar SQLite no cache",
+  );
+  expect(io.files.get(`${DIR}/handoff-2026-11-19-11111111.md`)).toContain("- decision | Usar SQLite no cache");
+});

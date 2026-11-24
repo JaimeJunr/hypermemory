@@ -9,3 +9,6 @@
 - Teste real do mod: `claude -p ... --model haiku --plugin-dir <repo>/mod --debug-file <log>` num diretório em `/tmp`; o log mostra hook pulado e chamada ao Haiku.
 - PR: o repo não tem skill `ship`; abra com `gh pr create`, sem linha de atribuição, e faça squash merge. O Codex revisa todo PR.
 - `.npmrc` do repo fixa o registro público: depois de mexer em dependência, `grep -c codeartifact bun.lock` tem de dar 0.
+- Hooks locais (lefthook, ligados pelo `prepare` do `bun install`): `pre-commit` roda Biome nos arquivos staged; `pre-push` roda lint, tsc, size e testes. `--no-verify` não pula o CI.
+- Mutação: `bun run mutate --all` (ou `--base <sha>`, `--list`) quebra de propósito as regras listadas em `scripts/mutants.ts` e exige suíte vermelha; no PR o CI roda só os mutantes dos arquivos alterados. Regra nova com limite ou filtro ganha mutante junto; troca que não casa mais reprova (mutante velho).
+- PR que muda `src/`, `mod/` ou `bin/` precisa tocar o `CHANGELOG.md` (`scripts/check-pr-rules-cli.ts`, no job `static`); o `static` também roda `bun audit`.

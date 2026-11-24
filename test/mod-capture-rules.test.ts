@@ -10,7 +10,7 @@ test("parseCandidates aceita linhas 'kind | texto', com ou sem marcador de lista
 });
 
 test("parseCandidates descarta kind desconhecido, linha solta, texto vazio e acima de 280 bytes", (): void => {
-  const text = ["opinião | x", "só uma frase", "rule | ", `rule | ${"a".repeat(281)}`].join("\n");
+  const text = ["opinion | x", "só uma frase", "rule | ", `rule | ${"a".repeat(281)}`].join("\n");
   expect(parseCandidates(text)).toEqual([]);
 });
 
@@ -32,4 +32,9 @@ test("formatCandidates devolve vazio sem candidato e lista com kind quando há",
 
 test("candidatesPrompt leva o registro e pede o formato kind | texto", (): void => {
   expect(candidatesPrompt("corpo da sessão")).toContain("corpo da sessão");
+});
+
+test("parseCandidates aceita exatamente 280 bytes (contados em UTF-8) e recusa 281", (): void => {
+  expect(parseCandidates(`rule | ${"á".repeat(140)}`)).toHaveLength(1);
+  expect(parseCandidates(`rule | ${"á".repeat(140)}a`)).toEqual([]);
 });
