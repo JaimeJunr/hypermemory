@@ -7,6 +7,8 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 ### Changed
 
 - Testes de `aging` e da captura passam a cobrir os limites (exatamente N dias, exatamente 280 bytes), o filtro de segredo e o kind desconhecido; o teste de kind usava uma palavra que o regex já recusava por outro motivo.
@@ -48,6 +50,7 @@ e o projeto adota o [Versionamento Semântico 2.0.0](https://semver.org/lang/pt-
 
 Formato da memória: 1
 
-[Unreleased]: https://github.com/JaimeJunr/hypermemory/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JaimeJunr/hypermemory/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JaimeJunr/hypermemory/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/JaimeJunr/hypermemory/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JaimeJunr/hypermemory/releases/tag/v0.1.0
