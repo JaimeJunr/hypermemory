@@ -11,12 +11,15 @@
     "lint": "biome ci .",
     "typecheck": "tsc --noEmit -p .",
     "size": "bun run scripts/check-size.ts",
-    "gate": "bun run lint && bun run typecheck && bun run size && bun run test"
+    "gate": "bun run lint && bun run typecheck && bun run size && bun run test",
+    "prepare": "lefthook install",
+    "mutate": "bun run scripts/mutate-cli.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
     "@types/bun": "^1.4.4",
     "fast-check": "4.8.0",
+    "lefthook": "2.2.2",
     "typescript": "^7.0.2"
   }
 }

@@ -1,0 +1,17 @@
+# Gate local barato: só antecipa o que o CI (static + test) já cobra. Pular com --no-verify não pula o CI.
+pre-commit:
+  commands:
+    biome:
+      glob: "*.{ts,mts,mjs,js,json,jsonc}"
+      run: bunx biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+
+pre-push:
+  commands:
+    lint:
+      run: bun run lint
+    typecheck:
+      run: bun run typecheck
+    size:
+      run: bun run size
+    test:
+      run: bun run test

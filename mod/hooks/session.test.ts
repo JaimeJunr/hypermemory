@@ -67,7 +67,17 @@ test("o início da sessão pega o handoff aberto, reescreve com o Haiku e deixa 
   await $.session.start(START);
   expect(w.writes.get(SUMMARY)).toContain("resumo do Haiku");
   expect(w.writes.get(`${DIR}/handoff-2026-11-19-11111111.md`)).toContain("status: claimed");
-  expect(w.prompts).toHaveLength(1);
+  expect(w.prompts).toHaveLength(2);
+});
+
+test("candidatos do modelo entram no resumo e nada é gravado na memória do projeto", async ($, on) => {
+  const reply = { ...answered, text: "decision | Usar SQLite no cache" } as unknown as ModelCompleteResult;
+  const w = world(on, { [`${DIR}/handoff-2026-11-19-11111111.md`]: OPEN }, reply);
+  on("session.start", () => ({ cwd: "/repo" }));
+  await $.session.start(START);
+  expect(w.writes.get(SUMMARY)).toContain("Candidatos a memória");
+  expect(w.writes.get(SUMMARY)).toContain("- decision | Usar SQLite no cache");
+  expect([...w.writes.keys()].every((path) => path.startsWith(DIR))).toBe(true);
 });
 
 test("sem handoff aberto o início não grava resumo nem chama o modelo", async ($, on) => {
