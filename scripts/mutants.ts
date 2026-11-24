@@ -16,8 +16,8 @@ export const MUTANTS: readonly Mutant[] = [
   m("mod/hooks/capture-rules.ts", "KINDS.includes(kind) &&", "true &&", "capture: kind desconhecido aceito"),
   m(
     "mod/hooks/session-flow.ts",
-    '[rewritten, candidates].filter(Boolean).join("\\n\\n")',
-    "rewritten",
+    '[rewritten ?? parsed.body, candidates].filter(Boolean).join("\\n\\n")',
+    "rewritten ?? parsed.body",
     "flow: candidatos fora do resumo",
   ),
   m("src/indexes.ts", "INDEX_LINE_LIMIT: number = 150", "INDEX_LINE_LIMIT: number = 151", "indexes: teto de linhas"),

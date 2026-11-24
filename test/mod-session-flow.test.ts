@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { CAPTURE_SYSTEM } from "../mod/hooks/capture-rules";
 import { HAIKU_SUMMARY, parseHandoff, type TranscriptMessage } from "../mod/hooks/handoff-rules";
 import { summaryPath } from "../mod/hooks/inject-context.mjs";
 import { loadPrevious, prepareSummary, type SessionIo, writeCheckpoint } from "../mod/hooks/session-flow";
@@ -199,4 +200,17 @@ test("candidatos sugeridos pelo modelo entram no resumo injetado e no handoff gr
     "**Candidatos a memória (revise; grave só os que valem):**\n- decision | Usar SQLite no cache",
   );
   expect(io.files.get(`${DIR}/handoff-2026-11-19-11111111.md`)).toContain("- decision | Usar SQLite no cache");
+});
+
+test("falha só na reescrita não descarta os candidatos: entram no corpo por regra e no handoff gravado", async () => {
+  const file: string = `${DIR}/handoff-2026-11-19-11111111.md`;
+  const io = new FakeSessionIo({ [file]: open("11111111", "corpo por regra") });
+  io.summarize = async (system: string): Promise<string | undefined> => {
+    if (system === CAPTURE_SYSTEM) return "gotcha | Hook não roda no /clear";
+    throw new Error("timeout");
+  };
+  const text = await loadPrevious(io, "sessao-nova-1");
+  expect(text).toContain("corpo por regra");
+  expect(text).toContain("- gotcha | Hook não roda no /clear");
+  expect(io.files.get(file)).toContain("- gotcha | Hook não roda no /clear");
 });

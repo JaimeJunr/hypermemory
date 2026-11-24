@@ -88,9 +88,12 @@ async function claim(io: SessionIo, dir: string, entry: HandoffFile, sessionId: 
   const [rewritten, candidates]: [string | undefined, string] = parsed.consolidated
     ? [undefined, ""]
     : await Promise.all([rewrite(io, parsed.body), capture(io, parsed.body)]);
-  const body: string = rewritten === undefined ? parsed.body : [rewritten, candidates].filter(Boolean).join("\n\n");
+  // Os candidatos não dependem da reescrita: se só ela falhou, o corpo por regra segue com eles anexados.
+  const body: string = [rewritten ?? parsed.body, candidates].filter(Boolean).join("\n\n");
   const consolidated: string =
-    rewritten === undefined ? entry.content : setField(replaceBody(entry.content, body), "consolidated", "true");
+    rewritten === undefined && candidates === ""
+      ? entry.content
+      : setField(replaceBody(entry.content, body), "consolidated", "true");
   const claimedBy: string = `${await io.today()} ${sessionId}`;
   // A sessão dona pode ter gravado checkpoint enquanto o modelo resumia: aí o arquivo fica como ela deixou.
   const current: string | undefined = await io.readFile(`${dir}/${entry.file}`).catch(() => undefined);
